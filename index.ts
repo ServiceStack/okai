@@ -1,5 +1,5 @@
 import blessed from 'blessed';
-import fs from 'fs-extra';
+import fs from 'fs';
 import path from 'path';
 
 // Create a screen object
@@ -47,12 +47,12 @@ screen.append(fileList);
 screen.append(preview);
 
 // Load current directory files
-const updateFileList = async (dir) => {
+const updateFileList = async (dir:string) => {
   try {
-    const files = await fs.readdir(dir);
+    const files = await fs.readdirSync(dir);
     fileList.setItems(files);
     screen.render();
-  } catch (err) {
+  } catch (err:any) {
     preview.setContent(`Error reading directory: ${err.message}`);
     screen.render();
   }
@@ -62,16 +62,16 @@ const updateFileList = async (dir) => {
 fileList.on('select', async (item) => {
   const filePath = path.join(process.cwd(), item.content);
   try {
-    const stats = await fs.stat(filePath);
+    const stats = await fs.statSync(filePath);
     if (stats.isDirectory()) {
       process.chdir(filePath);
       await updateFileList(process.cwd());
     } else {
-      const content = await fs.readFile(filePath, 'utf8');
+      const content = await fs.readFileSync(filePath, 'utf8');
       preview.setContent(content);
       screen.render();
     }
-  } catch (err) {
+  } catch (err:any) {
     preview.setContent(`Error: ${err.message}`);
     screen.render();
   }
