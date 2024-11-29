@@ -8,10 +8,23 @@ const screen = blessed.screen({
   title: 'File Preview'
 });
 
+// Create a titlebar
+const titlebar = blessed.box({
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: 1,
+  content: process.cwd(),
+  style: {
+    bg: 'blue',
+    fg: 'white'
+  }
+});
+
 // Create a box for file list
 const fileList = blessed.list({
   left: 0,
-  top: 0,
+  top: 1,
   width: '50%',
   height: '100%',
   border: {
@@ -29,7 +42,7 @@ const fileList = blessed.list({
 // Create a box for file preview
 const preview = blessed.box({
   right: 0,
-  top: 0,
+  top: 1,
   width: '50%',
   height: '100%',
   border: {
@@ -43,6 +56,7 @@ const preview = blessed.box({
 });
 
 // Add components to screen
+screen.append(titlebar);
 screen.append(fileList);
 screen.append(preview);
 
@@ -51,6 +65,7 @@ const updateFileList = async (dir:string) => {
   try {
     const files = await fs.readdirSync(dir);
     fileList.setItems(files);
+    titlebar.setContent(process.cwd());
     screen.render();
   } catch (err:any) {
     preview.setContent(`Error reading directory: ${err.message}`);
