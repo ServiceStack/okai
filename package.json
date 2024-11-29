@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "dependencies": {
+    "blessed": "^0.1.81"
+  },
+  "devDependencies": {
+    "@types/blessed": "^0.1.25",
+    "@types/bun": "^1.1.14",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  }
+}
