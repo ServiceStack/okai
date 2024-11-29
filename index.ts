@@ -8,15 +8,17 @@ const screen = blessed.screen({
   title: 'File Preview'
 });
 
+screen.title = `What's the capital of France?`;
+
 // Create a titlebar
 const titlebar = blessed.box({
   top: 0,
   left: 0,
   width: '100%',
-  height: 1,
+  height: '10%',
   content: process.cwd(),
   style: {
-    bg: 'blue',
+    // bg: 'blue',
     fg: 'white'
   }
 });
@@ -24,9 +26,9 @@ const titlebar = blessed.box({
 // Create a box for file list
 const fileList = blessed.list({
   left: 0,
-  top: 1,
-  width: '50%',
-  height: '100%',
+  top: 2,
+  width: '25%',
+  height: '90%',
   border: {
     type: 'line'
   },
@@ -42,9 +44,9 @@ const fileList = blessed.list({
 // Create a box for file preview
 const preview = blessed.box({
   right: 0,
-  top: 1,
-  width: '50%',
-  height: '100%',
+  top: 2,
+  width: '75%',
+  height: '90%',
   border: {
     type: 'line'
   },
