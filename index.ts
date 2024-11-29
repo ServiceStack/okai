@@ -28,7 +28,7 @@ const fileList = blessed.list({
   left: 0,
   top: 2,
   width: '25%',
-  height: '90%',
+  height: '88%',
   border: {
     type: 'line'
   },
@@ -39,6 +39,19 @@ const fileList = blessed.list({
   },
   keys: true,
   vi: true
+});
+
+// Create a status bar
+const statusBar = blessed.box({
+  bottom: 0,
+  left: 0,
+  width: '100%',
+  height: 1,
+  content: '(a) Accept (q) Quit',
+  style: {
+    fg: 'white',
+    bg: 'blue'
+  }
 });
 
 // Create a box for file preview
@@ -61,6 +74,7 @@ const preview = blessed.box({
 screen.append(titlebar);
 screen.append(fileList);
 screen.append(preview);
+screen.append(statusBar);
 
 // Load current directory files
 const updateFileList = async (dir:string) => {
