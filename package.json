@@ -1,5 +1,38 @@
 {
+  "name": "okai",
   "type": "module",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "description": "",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "import": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun run build.ts",
+    "clean": "shx rm -rf ./dist",
+    "test": "bun test --",
+    "prepublishOnly": "bun run build",
+    "release": "bun run clean && bun run build && bump patch --commit --push --tag && npm publish --access public"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "servicestack",
+    "api",
+    "crud",
+    "generator"
+  ],
+  "homepage": "https://servicestack.net",
+  "author": "ServiceStack, Inc. (https://servicestack.net)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ServiceStack/okai"
+  },
+  "bugs": "https://forums.servicestack.net",
   "dependencies": {
     "blessed": "^0.1.81"
   },
@@ -7,6 +40,7 @@
     "@types/blessed": "^0.1.25",
     "@types/bun": "^1.1.14",
     "@types/node": "^22.10.1",
+    "bun-plugin-dts": "^0.3.0",
     "typescript": "^5.7.2"
   }
 }

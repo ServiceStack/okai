@@ -1,9 +1,9 @@
-import type { Gist, ProjectInfo } from "./types.js"
+import type { Gist, ProjectInfo } from "../types.js"
 import fs from "fs"
 import path from "path"
 import blessed from 'blessed'
 import { projectInfo } from './info.js'
-import { replaceMyApp } from "./utils.js"
+import { replaceMyApp } from "../utils.js"
 
 const args = process.argv.slice(2)
 const text = args.join(' ')
