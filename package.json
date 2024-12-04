@@ -2,6 +2,7 @@
   "name": "okai",
   "type": "module",
   "version": "0.0.1",
+  "bin": "./dist/index.js",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,6 +21,9 @@
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "keywords": [
     "servicestack",
     "api",
