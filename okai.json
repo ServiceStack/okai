@@ -1,8 +1,0 @@
-{
-  "projectName": "BlazorDiffusion",
-  "slnDir": "/home/mythz/src/NetCoreApps/BlazorDiffusionVue",
-  "hostDir": "/home/mythz/src/NetCoreApps/BlazorDiffusionVue/BlazorDiffusion",
-  "migrationsDir": "/home/mythz/src/NetCoreApps/BlazorDiffusionVue/BlazorDiffusion/Migrations",
-  "serviceModelDir": "/home/mythz/src/NetCoreApps/BlazorDiffusionVue/BlazorDiffusion.ServiceModel",
-  "serviceInterfaceDir": "/home/mythz/src/NetCoreApps/BlazorDiffusionVue/BlazorDiffusion.ServiceInterface"
-}
