@@ -31,7 +31,9 @@ const baseUrl = process.env.OKAI_URL || 'https://okai.servicestack.com'
 
 async function fetchGistFiles(text: string) {
   const url = new URL('/gist', baseUrl)
-  url.searchParams.append('cached', `1`)
+  if (process.env.OKAI_CACHED) {
+    url.searchParams.append('cached', `1`)
+  }
   url.searchParams.append('text', text)
   const res = await fetch(url)
   if (!res.ok) {
@@ -256,6 +258,7 @@ function applyGist(ctx:Awaited<ReturnType<typeof createGistPreview>>,
 try {
   const info = projectInfo(__dirname)
   if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
+  console.log(`Generating new APIs and Tables for: ${text}...`)
   const gist = await fetchGistFiles(text)
   const projectGist = convertToProjectGist(info, gist)
   const ctx = await createGistPreview(text, projectGist)
