@@ -1,8 +1,9 @@
 {
     "compilerOptions": {
       "target": "es2020",
-      "module": "ESNext",
-      "strict": true,
+      "module": "NodeNext",
+      "moduleResolution": "nodenext",
+      "strict": false,
       "esModuleInterop": true,
       "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true

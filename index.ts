@@ -1,121 +1,268 @@
-import blessed from 'blessed';
-import fs from 'fs';
-import path from 'path';
+import type { Gist, ProjectInfo } from "./types.js"
+import fs from "fs"
+import path from "path"
+import blessed from 'blessed'
+import { projectInfo } from './info.js'
+import { replaceMyApp } from "./utils.js"
 
-// Create a screen object
-const screen = blessed.screen({
-  smartCSR: true,
-  title: 'File Preview'
-});
+const args = process.argv.slice(2)
+const text = args.join(' ')
 
-screen.title = `What's the capital of France?`;
-
-// Create a titlebar
-const titlebar = blessed.box({
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '10%',
-  content: process.cwd(),
-  style: {
-    // bg: 'blue',
-    fg: 'white'
+if (text.trim() === 'init') {
+  let info = {}
+  try {
+    info = projectInfo(__dirname)
+  } catch (err) {
+    info = {
+      projectName: "",
+      sln: "",
+      slnDir: "",
+      hostDir: "",
+      migrationsDir: "",
+      serviceModelDir: "",
+      serviceInterfaceDir: "",
+    }
   }
-});
+  fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
+  process.exit(0)
+}
 
-// Create a box for file list
-const fileList = blessed.list({
-  left: 0,
-  top: 2,
-  width: '25%',
-  height: '88%',
-  border: {
-    type: 'line'
-  },
-  style: {
-    selected: {
+const baseUrl = process.env.OKAI_URL || 'https://okai.servicestack.com'
+
+async function fetchGistFiles(text: string) {
+  const url = new URL('/gist', baseUrl)
+  url.searchParams.append('cached', `1`)
+  url.searchParams.append('text', text)
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Failed to generate files: ${res.statusText}`)
+  }
+  const gist = await res.json()
+  const files = gist.files
+  if (!files || Object.keys(files).length === 0) {
+    throw new Error(`Request didn't generate any files`)
+  }
+  return gist as Gist
+}
+
+function convertToProjectGist(info: ProjectInfo, gist: Gist) {
+  const to = Object.assign({}, gist, { files: {} })
+  const cwd = process.cwd()
+  for (const [fileName, file] of Object.entries(gist.files)) {
+    if (fileName.startsWith('MyApp.ServiceModel/') && info.serviceModelDir) {
+      const fullPath = path.join(info.serviceModelDir, file.filename.substring('MyApp.ServiceModel/'.length))
+      const relativePath = path.relative(cwd, fullPath)
+      to.files[relativePath] = {
+        filename: path.basename(fullPath),
+        content: replaceMyApp(gist.files[fileName].content, info.projectName)
+      }
+
+    } else if (fileName.startsWith('MyApp/Migrations/') && info.migrationsDir) {
+      const fullPath = path.join(info.migrationsDir, file.filename.substring('MyApp.Migrations/'.length))
+      const relativePath = path.relative(cwd, fullPath)
+      to.files[relativePath] = Object.assign({}, file, {
+        filename: path.basename(fullPath),
+        content: replaceMyApp(gist.files[fileName].content, info.projectName)
+      })
+    } else {
+      const fullPath = path.join(info.slnDir, file.filename)
+      const relativePath = path.relative(cwd, fullPath)
+      const toFilename = replaceMyApp(relativePath, info.projectName)
+      to.files[relativePath] = Object.assign({}, file, {
+        filename: path.basename(toFilename),
+        content: replaceMyApp(file.content, info.projectName)
+      })
+    }
+  }
+  return to
+}
+
+async function createGistPreview(title:string, gist:Gist) {
+  // Initialize screen
+  const screen = blessed.screen({
+    smartCSR: true,
+    title,
+  })
+
+  // Create title bar
+  const titleBar = blessed.box({
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: 1,
+    content: ` ${title}`,
+    style: {
+      fg: 'black',
+      bg: 'white'
+    }
+  })
+
+  // Create file list
+  const fileList = blessed.list({
+    left: 0,
+    top: 1,
+    width: '35%',
+    height: '95%-1',
+    border: {
+      type: 'line'
+    },
+    style: {
+      selected: {
+        bg: 'blue',
+        fg: 'white'
+      }
+    },
+    keys: true,
+    vi: true,
+    mouse: true,
+    items: Object.keys(gist.files)
+  })
+
+  const firstFilename = Object.keys(gist.files)[0]
+  // Create preview pane
+  const preview = blessed.box({
+    right: 0,
+    top: 1,
+    width: '65%',
+    height: '95%-1',
+    border: {
+      type: 'line'
+    },
+    content: gist.files[firstFilename].content,
+    scrollable: true,
+    alwaysScroll: true,
+    keys: true,
+    vi: true,
+    mouse: true
+  })
+
+  // Create status bar
+  const statusBar = blessed.box({
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: 1,
+    content: 'Press (a) accept  (d) discard  (A) Accept All  (q) quit',
+    style: {
+      fg: 'white',
       bg: 'blue'
     }
-  },
-  keys: true,
-  vi: true
-});
+  })
 
-// Create a status bar
-const statusBar = blessed.box({
-  bottom: 0,
-  left: 0,
-  width: '100%',
-  height: 1,
-  content: '(a) Accept (q) Quit',
-  style: {
-    fg: 'white',
-    bg: 'blue'
+  // Add components to screen
+  screen.append(titleBar)
+  screen.append(fileList)
+  screen.append(preview)
+  screen.append(statusBar)
+
+  const result = {
+    selectedFile: firstFilename
   }
-});
 
-// Create a box for file preview
-const preview = blessed.box({
-  right: 0,
-  top: 2,
-  width: '75%',
-  height: '90%',
-  border: {
-    type: 'line'
-  },
-  content: 'Select a file to preview',
-  scrollable: true,
-  alwaysScroll: true,
-  keys: true,
-  vi: true
-});
-
-// Add components to screen
-screen.append(titlebar);
-screen.append(fileList);
-screen.append(preview);
-screen.append(statusBar);
-
-// Load current directory files
-const updateFileList = async (dir:string) => {
-  try {
-    const files = await fs.readdirSync(dir);
-    fileList.setItems(files);
-    titlebar.setContent(process.cwd());
-    screen.render();
-  } catch (err:any) {
-    preview.setContent(`Error reading directory: ${err.message}`);
-    screen.render();
-  }
-};
-
-// Handle file selection
-fileList.on('select', async (item) => {
-  const filePath = path.join(process.cwd(), item.content);
-  try {
-    const stats = await fs.statSync(filePath);
-    if (stats.isDirectory()) {
-      process.chdir(filePath);
-      await updateFileList(process.cwd());
-    } else {
-      const content = await fs.readFileSync(filePath, 'utf8');
-      preview.setContent(content);
-      screen.render();
+  // Handle file selection
+  fileList.on('select item', (item) => {
+    const filename = item.content
+    result.selectedFile = filename
+    const file = gist.files[filename]
+    if (file) {
+      preview.setContent(file.content)
+      screen.render()
     }
-  } catch (err:any) {
-    preview.setContent(`Error: ${err.message}`);
-    screen.render();
+  })
+
+  // Handle key events
+  screen.key(['q', 'C-c'], () => process.exit(0))
+
+  // Focus on file list
+  fileList.focus()
+
+  // Render screen
+  return { screen, titleBar, fileList, preview, statusBar, result }
+}
+
+function writeFile(info:ProjectInfo, filename: string, content:string) {
+  let fullPath = path.join(process.cwd(), filename)
+  const dir = path.dirname(fullPath)
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
   }
-});
+  if (fs.existsSync(fullPath)) {
+    const filename = path.basename(fullPath)
+    const ext = path.extname(filename)
+    const baseName = path.basename(filename, ext)
+    // filename: Migration1000.cs, baseName: Migration1000, ext: .cs
+    // console.log(`File already exists: ${fullPath}`, { filename, baseName, ext })
+    const numberedFile = baseName.match(/(\d+)$/)
+    if (numberedFile) {
+      let nextNumber = parseInt(numberedFile[1])
+      while (fs.existsSync(fullPath)) {
+        if (numberedFile) {
+          nextNumber += 1
+          fullPath = path.join(dir, `${baseName.replace(/\d+$/, '')}${nextNumber}${ext}`)
+        }
+      }
+      const renamedFile = `${baseName.replace(/\d+$/, '')}${nextNumber}`
+      content = content.replaceAll(baseName, renamedFile)
+    }
+  }
+  fs.writeFileSync(fullPath, content)
+}
 
-// Quit on q, or Control-C
-screen.key(['q', 'C-c'], () => process.exit(0));
+function exit(screen:blessed.Widgets.Screen, info:ProjectInfo, gist:Gist) {
+  screen.destroy()
+  if (info.migrationsDir) {
+    console.log(`\nRun 'dotnet run --AppTasks=migrate' to apply any new migrations and create the new tables`)
+  }
+  process.exit(0)
+}
 
-// Focus file list
-fileList.focus();
+function applyGist(ctx:Awaited<ReturnType<typeof createGistPreview>>, 
+  info:ProjectInfo, gist:Gist, 
+  { accept = false, acceptAll = false, discard = false }) {
+  const { screen, titleBar, fileList, preview, statusBar, result } = ctx
 
-// Initial file list load
-await updateFileList(process.cwd());
+  function removeSelected() {    
+    delete gist.files[result.selectedFile]
+    fileList.removeItem(result.selectedFile)
+    const nextFile = Object.keys(gist.files)[0]
+    if (nextFile) {
+      result.selectedFile = nextFile
+      const nextFileIndex = fileList.getItemIndex(nextFile)
+      fileList.select(nextFileIndex)
+      preview.setContent(gist.files[nextFile].content)
+    }
+    screen.render()
+    if (Object.keys(gist.files).length === 0) {
+      //screen.destroy()
+      exit(screen, info, gist)
+    }
+  }
 
-// Render the screen
-screen.render();
+  if (discard) {
+    const file = gist.files[result.selectedFile]
+    removeSelected()
+  } else if (accept) {
+    const file = gist.files[result.selectedFile]
+    writeFile(info, result.selectedFile, file.content)
+    removeSelected()
+  } else if (acceptAll) {
+    for (const [filename, file] of Object.entries(gist.files)) {
+      writeFile(info, filename, file.content)
+    }
+    exit(screen, info, gist)
+  }
+}
+
+try {
+  const info = projectInfo(__dirname)
+  if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
+  const gist = await fetchGistFiles(text)
+  const projectGist = convertToProjectGist(info, gist)
+  const ctx = await createGistPreview(text, projectGist)
+  ctx.screen.key('a', () => applyGist(ctx, info, projectGist, { accept: true }))
+  ctx.screen.key('d', () => applyGist(ctx, info, projectGist, { discard: true }))
+  ctx.screen.key('S-a', () => applyGist(ctx, info, projectGist, { acceptAll: true }))
+  ctx.screen.render()
+} catch (err) {
+  console.error(err)
+}

@@ -10,14 +10,3 @@
     "typescript": "^5.7.2"
   }
 }
-{
-  "name": "file-preview-tui",
-  "version": "1.0.0",
-  "description": "Terminal GUI file preview",
-  "main": "index.js",
-  "type": "module",
-  "dependencies": {
-    "blessed": "^0.1.81",
-    "fs-extra": "^11.2.0"
-  }
-}
