@@ -1,13 +1,13 @@
-import type { Gist, ProjectInfo } from "../types.js"
+import type { Gist, ProjectInfo } from "./types.js"
 import fs from "fs"
 import path from "path"
 import blessed from 'blessed'
 import { projectInfo } from './info.js'
-import { replaceMyApp } from "../utils.js"
+import { replaceMyApp } from "./utils.js"
 
 export async function cli(args:string[]) {
-  const text = args.join(' ')
-  if (text.trim() === 'init') {
+  const text = args.join(' ').trim()
+  if (text === 'init') {
     let info = {}
     try {
       info = projectInfo(process.cwd())
@@ -24,6 +24,13 @@ export async function cli(args:string[]) {
     }
     fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
     process.exit(0)
+  }
+  if (!text || text === '?' || text === 'help') {
+    console.log(`Usage: 
+okai init      - Initialize okai.json with project info to override default paths
+okai <prompt>  - Generate new APIs and Tables for the specified prompt`)
+    process.exit(0)
+    return
   }
   
   const baseUrl = process.env.OKAI_URL || 'https://okai.servicestack.com'
