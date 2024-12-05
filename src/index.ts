@@ -5,31 +5,46 @@ import blessed from 'blessed'
 import { projectInfo } from './info.js'
 import { replaceMyApp } from "../utils.js"
 
-const args = process.argv.slice(2)
-const text = args.join(' ')
-
-if (text.trim() === 'init') {
-  let info = {}
-  try {
-    info = projectInfo(__dirname)
-  } catch (err) {
-    info = {
-      projectName: "",
-      sln: "",
-      slnDir: "",
-      hostDir: "",
-      migrationsDir: "",
-      serviceModelDir: "",
-      serviceInterfaceDir: "",
+export async function cli(args:string[]) {
+  const text = args.join(' ')
+  if (text.trim() === 'init') {
+    let info = {}
+    try {
+      info = projectInfo(process.cwd())
+    } catch (err) {
+      info = {
+        projectName: "",
+        sln: "",
+        slnDir: "",
+        hostDir: "",
+        migrationsDir: "",
+        serviceModelDir: "",
+        serviceInterfaceDir: "",
+      }
     }
+    fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
+    process.exit(0)
   }
-  fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
-  process.exit(0)
+  
+  const baseUrl = process.env.OKAI_URL || 'https://okai.servicestack.com'
+
+  try {
+    const info = projectInfo(process.cwd())
+    if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
+    console.log(`Generating new APIs and Tables for: ${text}...`)
+    const gist = await fetchGistFiles(baseUrl, text)
+    const projectGist = convertToProjectGist(info, gist)
+    const ctx = await createGistPreview(text, projectGist)
+    ctx.screen.key('a', () => applyGist(ctx, info, projectGist, { accept: true }))
+    ctx.screen.key('d', () => applyGist(ctx, info, projectGist, { discard: true }))
+    ctx.screen.key('S-a', () => applyGist(ctx, info, projectGist, { acceptAll: true }))
+    ctx.screen.render()
+  } catch (err) {
+    console.error(err)
+  }
 }
 
-const baseUrl = process.env.OKAI_URL || 'https://okai.servicestack.com'
-
-async function fetchGistFiles(text: string) {
+async function fetchGistFiles(baseUrl:string, text: string) {
   const url = new URL('/gist', baseUrl)
   if (process.env.OKAI_CACHED) {
     url.searchParams.append('cached', `1`)
@@ -253,19 +268,4 @@ function applyGist(ctx:Awaited<ReturnType<typeof createGistPreview>>,
     }
     exit(screen, info, gist)
   }
-}
-
-try {
-  const info = projectInfo(__dirname)
-  if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
-  console.log(`Generating new APIs and Tables for: ${text}...`)
-  const gist = await fetchGistFiles(text)
-  const projectGist = convertToProjectGist(info, gist)
-  const ctx = await createGistPreview(text, projectGist)
-  ctx.screen.key('a', () => applyGist(ctx, info, projectGist, { accept: true }))
-  ctx.screen.key('d', () => applyGist(ctx, info, projectGist, { discard: true }))
-  ctx.screen.key('S-a', () => applyGist(ctx, info, projectGist, { acceptAll: true }))
-  ctx.screen.render()
-} catch (err) {
-  console.error(err)
 }

@@ -2,7 +2,7 @@
   "name": "okai",
   "type": "module",
   "version": "0.0.2",
-  "bin": "./dist/index.js",
+  "bin": "./dist/okai.js",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
