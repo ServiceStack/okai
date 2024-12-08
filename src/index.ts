@@ -51,7 +51,7 @@ okai <prompt>  - Generate new APIs and Tables for the specified prompt`)
   }
 }
 
-async function fetchGistFiles(baseUrl:string, text: string) {
+async function fetchGistFiles(baseUrl:string, text:string) {
   const url = new URL('/gist', baseUrl)
   if (process.env.OKAI_CACHED) {
     url.searchParams.append('cached', `1`)
