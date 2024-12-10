@@ -1,4 +1,4 @@
-import type { ProjectInfo } from "./types.js"
+import type { ProjectInfo } from "./types"
 import fs from "fs"
 import path from "path"
 
