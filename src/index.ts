@@ -9,7 +9,7 @@ import { toMetadataTypes } from "./cs-ast"
 import { CSharpApiGenerator } from "./cs-apis"
 import { CSharpMigrationGenerator } from "./cs-migrations"
 import { TsdDataModelGenerator } from "./tsd-gen"
-import { parseTsdHeader, toTsdHeader } from "./client"
+import { parseTsdHeader, toTsdHeader, TsdHeader } from "./client"
 
 type Command = {
   type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove"
@@ -141,7 +141,7 @@ export async function cli(cmdArgs:string[]) {
     process.exit(0)
     return
   }
-  if (command.type === 'help' || command.unknown?.length) {
+  if (command.type === "help" || command.unknown?.length) {
     const exitCode = command.unknown?.length ? 1 : 0
     if (command.unknown?.length) {
       console.log(`Unknown Command: ${command.script} ${command.unknown!.join(' ')}\n`)
@@ -176,7 +176,7 @@ Options:
     }
 }
 
-  if (command.type === 'info') {
+  if (command.type === "info") {
     try {
       console.log(JSON.stringify(command.info, undefined, 2))
     } catch (err:any) {
@@ -190,7 +190,7 @@ Options:
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"        
   }
 
-  if (command.type === 'list') {
+  if (command.type === "list") {
     if (command.list == "models") {
       const url = new URL('/models/list', command.baseUrl)
       if (command.verbose) console.log(`GET: ${url}`)
@@ -230,46 +230,68 @@ Options:
         : path.join(process.cwd(), apiPath)
   }
 
-  if (command.type === 'update') {
+  if (command.type === "update") {
     let tsdPath = assertTsdPath(command.tsdFile)
 
     if (command.verbose) console.log(`Updating: ${tsdPath}...`)
     let tsdContent = fs.readFileSync(tsdPath, 'utf-8')
     const header = parseTsdHeader(tsdContent)
     if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
-    
-    const tsdAst = toAst(tsdContent)
-    const tsdGenerator = new TsdDataModelGenerator()
-    tsdContent = tsdGenerator.generate(tsdAst)
 
-    const csAst = toMetadataTypes(tsdAst)
-    // const groupName = path.basename(command.tsdFile, '.d.ts')
-    // console.log('groupName', groupName)
+    function regenerate(header:TsdHeader, tsdContent:string, logPrefix = '') {
+      const tsdAst = toAst(tsdContent)
+      const tsdGenerator = new TsdDataModelGenerator()
+      tsdContent = tsdGenerator.generate(tsdAst)
   
-    const genApis = new CSharpApiGenerator()
-    const csApiFiles = genApis.generate(csAst)
-    const apiContent = replaceMyApp(csApiFiles[Object.keys(csApiFiles)[0]], info.projectName)
-    const apiPath = resolveApiFile(header.api)
-    console.log(`saved: ${apiPath}`)
-    fs.writeFileSync(apiPath, apiContent, { encoding: 'utf-8' })
-
-    if (header?.migration) {
-      const migrationCls = leftPart(path.basename(header.migration), '.')
-      const getMigrations = new CSharpMigrationGenerator()
-      const csMigrationFiles = getMigrations.generate(csAst)
-      const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
-      const migrationPath = resolveApiFile(header.migration)
-      console.log(`saved: ${migrationPath}`)
-      fs.writeFileSync(migrationPath, migrationContent, { encoding: 'utf-8' })
+      const csAst = toMetadataTypes(tsdAst)
+      // const groupName = path.basename(command.tsdFile, '.d.ts')
+      // console.log('groupName', groupName)
+    
+      const genApis = new CSharpApiGenerator()
+      const csApiFiles = genApis.generate(csAst)
+      const apiContent = replaceMyApp(csApiFiles[Object.keys(csApiFiles)[0]], info.projectName)
+      const apiPath = resolveApiFile(header.api)
+      console.log(`${logPrefix}${apiPath}`)
+      fs.writeFileSync(apiPath, apiContent, { encoding: 'utf-8' })
+  
+      if (header?.migration) {
+        const migrationCls = leftPart(path.basename(header.migration), '.')
+        const getMigrations = new CSharpMigrationGenerator()
+        const csMigrationFiles = getMigrations.generate(csAst)
+        const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
+        const migrationPath = resolveApiFile(header.migration)
+        console.log(`${logPrefix}${migrationPath}`)
+        fs.writeFileSync(migrationPath, migrationContent, { encoding: 'utf-8' })
+      }
+  
+      console.log(`${logPrefix}${tsdPath}`)
+      const newTsdContent = toTsdHeader(header) + '\n\n' + tsdContent
+      fs.writeFileSync(tsdPath, newTsdContent, { encoding: 'utf-8' })
+      return newTsdContent
     }
 
-    console.log(`saved: ${tsdPath}`)
-    fs.writeFileSync(tsdPath, toTsdHeader(header) + '\n\n' + tsdContent, { encoding: 'utf-8' })
-  
-    console.log(`\nLast migration can be rerun with 'npm run rerun:last' or:`)
-    console.log(`$ dotnet run --AppTasks=migrate.rerun:last`)
-  
-    process.exit(0)
+    if (command.watch) {
+      let lastTsdContent = tsdContent
+      console.log(`watching ${tsdPath} ...`)
+      let i = 0
+      fs.watchFile(tsdPath, { interval: 100 }, (curr, prev) => {
+        let tsdContent = fs.readFileSync(tsdPath, 'utf-8')
+        if (tsdContent == lastTsdContent) {
+          if (command.verbose) console.log(`No change detected`)
+          return
+        }
+        console.log(`\n${++i}. ${leftPart(new Date().toTimeString(), ' ')} regenerating files:`)
+        lastTsdContent = regenerate(header,tsdContent)
+      })
+      return
+    } else {
+    
+      regenerate(header,tsdContent,'saved: ')
+      console.log(`\nLast migration can be rerun with 'npm run rerun:last' or:`)
+      console.log(`$ dotnet run --AppTasks=migrate.rerun:last`)
+    
+      process.exit(0)
+    }
   }
   if (command.type === 'remove') {
     let tsdPath = assertTsdPath(command.tsdFile)
