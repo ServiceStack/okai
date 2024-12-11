@@ -566,6 +566,9 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const fullApiPath = path.join(info.slnDir,relativeServiceModelDir,apiFileName)
   const fullMigrationPath = path.join(info.slnDir,relativeMigrationDir,migrationFileName)
 
+  const clearScreen = blessed.screen()
+  clearScreen.render()
+
   if (!fs.existsSync(path.dirname(fullTsdPath))) {
     console.log(`Directory does not exist: ${path.dirname(fullTsdPath)}`)
     process.exit(0)
