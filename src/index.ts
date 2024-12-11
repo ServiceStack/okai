@@ -148,20 +148,22 @@ export async function cli(cmdArgs:string[]) {
     }
     console.log(`Usage: 
 ${script} <prompt>             Generate new TypeScript Data Models, C# APIs and Migrations from prompt
+    -m, -models <model,>     Specify up to 5 LLM models to generate .d.ts Data Models
+    -l, -license <LC-xxx>    Specify valid license certificate or key to use premium models
+
 ${script} <models>.d.ts        Regenerate C# *.cs files for Data Models defined in the TypeScript .d.ts file
-${script} init                 Initialize okai.json with project info to override default paths
+    -w, -watch               Watch for changes to <models>.d.ts and regenerate *.cs on save
+
 ${script} rm <models>.d.ts     Remove <models>.d.ts and its generated *.cs files
 ${script} ls models            Display list of available premium LLM models
+${script} init                 Initialize okai.json with project info to override default paths
+${script} info                 Display current project info
 
 Options:
-    -m, -models <model,>     Specify up to 5 LLM models to generate .d.ts Data Models (env OKAI_MODELS)
-    -w, -watch               Watch for changes to <models>.d.ts and regenerate *.cs on save
     -v, -verbose             Display verbose logging
         --ignore-ssl-errors  Ignore SSL Errors`)
-/**: try without first
-    -l, -license <LC-xxx>    Specify valid license certificate to use premium models  (env OKAI_LICENSE)
-*/
-    process.exit(exitCode)
+
+        process.exit(exitCode)
     return
   }
 
