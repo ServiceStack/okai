@@ -8,7 +8,8 @@ import { toAst } from "./ts-ast"
 import { toMetadataTypes } from "./cs-ast"
 import { CSharpApiGenerator } from "./cs-apis"
 import { CSharpMigrationGenerator } from "./cs-migrations"
-import { parseTsdHeader } from "./client"
+import { TsdDataModelGenerator } from "./tsd-gen"
+import { parseTsdHeader, toTsdHeader } from "./client"
 
 type Command = {
   type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove"
@@ -96,8 +97,13 @@ function parseArgs(...args: string[]) : Command {
     if (!ret.models && process.env.OKAI_MODELS) {
       ret.models = process.env.OKAI_MODELS
     }
-    if (ret.models && !ret.license && process.env.OKAI_LICENSE) {
-      ret.license = process.env.OKAI_LICENSE
+    if (ret.models) {
+      if (!ret.license && process.env.SERVICESTACK_CERTIFICATE) {
+        ret.license = process.env.SERVICESTACK_CERTIFICATE
+      }
+      if (!ret.license && process.env.SERVICESTACK_LICENSE) {
+        ret.license = process.env.SERVICESTACK_LICENSE
+      }
     }
   }
   
@@ -112,51 +118,64 @@ export async function cli(cmdArgs:string[]) {
     console.log(`Command: ${JSON.stringify(command, undefined, 2)}`)    
   }
   if (command.debug) {
+
+    console.log(`Environment:`)
+    Object.keys(process.env).forEach(k => {
+      console.log(`${k}: ${process.env[k]}`)
+    })
+
     process.exit(0)
     return
   }
 
-  if (command.type === 'init') {
-    let info = {}
-    try {
-      info = projectInfo(process.cwd())
-    } catch (err) {
-      info = {
-        projectName: "",
-        sln: "",
-        slnDir: "",
-        hostDir: "",
-        migrationsDir: "",
-        serviceModelDir: "",
-        serviceInterfaceDir: "",
-      }
+  if (command.type === "init") {
+    let info = projectInfo(process.cwd()) ?? {
+      projectName: "<MyApp>",      
+      slnDir: "/path/to/.sln/folder",
+      hostDir: "/path/to/MyApp",
+      migrationsDir: "/path/to/MyApp/Migrations",
+      serviceModelDir: "/path/to/MyApp.ServiceModel",
+      serviceInterfaceDir: "/path/to/MyApp.ServiceInterfaces",
     }
     fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
     process.exit(0)
     return
   }
   if (command.type === 'help' || command.unknown?.length) {
-    const exitCode = command.unknown?.length ? -1 : 0
+    const exitCode = command.unknown?.length ? 1 : 0
     if (command.unknown?.length) {
       console.log(`Unknown Command: ${command.script} ${command.unknown!.join(' ')}\n`)
     }
     console.log(`Usage: 
-${script} init               - Initialize okai.json with project info to override default paths
-${script} <prompt>           - Generate new APIs and Tables for the specified prompt
-${script} <models>.d.ts      - Regenerate APIs and Tables for the specified TypeScript Definition models
-${script} rm <models>.d.ts   - Remove data models and associated C# APIs, Tables and Migrations
-${script} ls models          - Display list of available LLM models
+${script} <prompt>             Generate new TypeScript Data Models, C# APIs and Migrations from prompt
+${script} <models>.d.ts        Regenerate C# *.cs files for Data Models defined in the TypeScript .d.ts file
+${script} init                 Initialize okai.json with project info to override default paths
+${script} rm <models>.d.ts     Remove <models>.d.ts and its generated *.cs files
+${script} ls models            Display list of available premium LLM models
 
 Options:
-    -m, -models <models,>    Specify up to 5 LLM models to generate .d.ts Data Models (env OKAI_MODELS)
-    -l, -license <LC-xxx>    Specify valid license certificate to use premium models  (env OKAI_LICENSE)
+    -m, -models <model,>     Specify up to 5 LLM models to generate .d.ts Data Models (env OKAI_MODELS)
+    -w, -watch               Watch for changes to <models>.d.ts and regenerate *.cs on save
     -v, -verbose             Display verbose logging
         --ignore-ssl-errors  Ignore SSL Errors`)
+/**: try without first
+    -l, -license <LC-xxx>    Specify valid license certificate to use premium models  (env OKAI_LICENSE)
+*/
     process.exit(exitCode)
     return
   }
 
   const info = command.info = projectInfo(process.cwd())
+  if (!info) {
+    if (!info) {
+      console.log(`No .sln file found`)
+      console.log(`okai needs to be run within a ServiceStack App that contains a ServiceModel project`)
+      console.log(`To use with an external or custom project, create an okai.json config file with:`)
+      console.log(`$ ${script} init`)
+      process.exit(1)
+    }
+}
+
   if (command.type === 'info') {
     try {
       console.log(JSON.stringify(command.info, undefined, 2))
@@ -174,6 +193,7 @@ Options:
   if (command.type === 'list') {
     if (command.list == "models") {
       const url = new URL('/models/list', command.baseUrl)
+      if (command.verbose) console.log(`GET: ${url}`)
       const res = await fetch(url)
       if (!res.ok) {
         console.log(`Failed to fetch models: ${res.statusText}`)
@@ -182,7 +202,6 @@ Options:
       const models = await res.text()
       console.log(models)
       process.exit(0)
-      return
     }
   }
 
@@ -200,14 +219,56 @@ Options:
     }
     return tsdPath
   }
+  function resolveMigrationFile(migrationPath:string) {
+    return migrationPath.startsWith('~/') 
+        ? path.join(info.slnDir, trimStart(migrationPath, '~/'))
+        : path.join(process.cwd(), migrationPath)
+  }
+  function resolveApiFile(apiPath:string) {
+    return apiPath.startsWith('~/') 
+        ? path.join(info.slnDir, trimStart(apiPath, '~/'))
+        : path.join(process.cwd(), apiPath)
+  }
 
   if (command.type === 'update') {
     let tsdPath = assertTsdPath(command.tsdFile)
 
-    console.log(`Updating: ${tsdPath}...`)
-    const tsdContent = fs.readFileSync(tsdPath, 'utf-8')
+    if (command.verbose) console.log(`Updating: ${tsdPath}...`)
+    let tsdContent = fs.readFileSync(tsdPath, 'utf-8')
     const header = parseTsdHeader(tsdContent)
-    console.log(JSON.stringify(header, undefined, 2))
+    if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
+    
+    const tsdAst = toAst(tsdContent)
+    const tsdGenerator = new TsdDataModelGenerator()
+    tsdContent = tsdGenerator.generate(tsdAst)
+
+    const csAst = toMetadataTypes(tsdAst)
+    // const groupName = path.basename(command.tsdFile, '.d.ts')
+    // console.log('groupName', groupName)
+  
+    const genApis = new CSharpApiGenerator()
+    const csApiFiles = genApis.generate(csAst)
+    const apiContent = replaceMyApp(csApiFiles[Object.keys(csApiFiles)[0]], info.projectName)
+    const apiPath = resolveApiFile(header.api)
+    console.log(`saved: ${apiPath}`)
+    fs.writeFileSync(apiPath, apiContent, { encoding: 'utf-8' })
+
+    if (header?.migration) {
+      const migrationCls = leftPart(path.basename(header.migration), '.')
+      const getMigrations = new CSharpMigrationGenerator()
+      const csMigrationFiles = getMigrations.generate(csAst)
+      const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
+      const migrationPath = resolveApiFile(header.migration)
+      console.log(`saved: ${migrationPath}`)
+      fs.writeFileSync(migrationPath, migrationContent, { encoding: 'utf-8' })
+    }
+
+    console.log(`saved: ${tsdPath}`)
+    fs.writeFileSync(tsdPath, toTsdHeader(header) + '\n\n' + tsdContent, { encoding: 'utf-8' })
+  
+    console.log(`\nLast migration can be rerun with 'npm run rerun:last' or:`)
+    console.log(`$ dotnet run --AppTasks=migrate.rerun:last`)
+  
     process.exit(0)
   }
   if (command.type === 'remove') {
@@ -219,25 +280,21 @@ Options:
     if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
 
     if (header?.migration) {
-      const migrationPath = header.migration.startsWith('~/') 
-        ? path.join(info.slnDir, trimStart(header.migration, '~/'))
-        : path.join(process.cwd(), header.migration)
+      const migrationPath = resolveMigrationFile(header.migration)
       if (fs.existsSync(migrationPath)) {
         fs.unlinkSync(migrationPath)
         console.log(`Removed: ${migrationPath}`)
       } else {
-        console.log(`Migration file not found: ${migrationPath}`)
+        console.log(`Migration .cs file not found: ${migrationPath}`)
       }
     }
     if (header?.api) {
-      const apiPath = header.api.startsWith('~/')
-        ? path.join(info.slnDir, trimStart(header.api, '~/'))
-        : path.join(process.cwd(), header.api)
+      const apiPath = resolveApiFile(header.api)
       if (fs.existsSync(apiPath)) {
         fs.unlinkSync(apiPath)
         console.log(`Removed: ${apiPath}`)
       } else {
-        console.log(`APIs file not found: ${apiPath}`)
+        console.log(`APIs .cs file not found: ${apiPath}`)
       }
     }
     fs.unlinkSync(tsdPath)
@@ -250,7 +307,7 @@ Options:
     try {
       if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
       console.log(`Generating new APIs and Tables for: ${command.prompt}...`)
-      const gist = await fetchGistFiles(command.baseUrl, command.prompt)
+      const gist = await fetchGistFiles(command)
       // const projectGist = convertToProjectGist(info, gist)
       const ctx = await createGistPreview(command.prompt, gist)
       ctx.screen.key('a', () => chooseFile(ctx, info, gist))
@@ -261,18 +318,35 @@ Options:
     } catch (err) {
       console.error(err)
     }
+  } else {
+    console.log(`Unknown command: ${command.type}`)
+    process.exit(1)
   }
 }
 
-async function fetchGistFiles(baseUrl:string, text:string) {
-  const url = new URL('/models/gist', baseUrl)
+async function fetchGistFiles(command:Command) {
+  const url = new URL('/models/gist', command.baseUrl)
   if (process.env.OKAI_CACHED) {
     url.searchParams.append('cached', `1`)
   }
-  url.searchParams.append('text', text)
+  url.searchParams.append('prompt', command.prompt)
+  if (command.models) {
+    url.searchParams.append('models', command.models)
+    if (command.license) {
+      url.searchParams.append('license', command.license)
+    }
+  }
+  
+  if (command.verbose) console.log(`GET: ${url}`)
   const res = await fetch(url)
   if (!res.ok) {
-    throw new Error(`Failed to generate files: ${res.statusText}`)
+    try {
+      const errorResponse = await res.json()
+      console.error(errorResponse?.responseStatus?.message ?? errorResponse.message ?? errorResponse)
+    } catch (err) {
+      console.log(`Failed to generate data models: ${res.statusText}`)
+    }
+    process.exit(1)
   }
   const gist = await res.json()
   const files = gist.files

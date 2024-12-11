@@ -20,7 +20,7 @@ export function projectInfo(cwd: string) : ProjectInfo {
     }
     if (!sln) {
         if (config) return config
-        throw new Error("No .sln file found")
+        return null
     }
     const projectName = sln.substring(0, sln.length - 4)
 

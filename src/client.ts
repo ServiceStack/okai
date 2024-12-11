@@ -29,3 +29,16 @@ export function parseTsdHeader(tsd:string): TsdHeader | null {
     if (to.migration) to.migration = to.migration.trim()
     return to
 }
+
+export function toTsdHeader(header:TsdHeader): string {
+    const sb = [
+        `/*prompt:  ${header.prompt}`,
+        `api:       ${header.api}`,        
+    ]
+    if (header.migration) {
+        sb.push(`migration: ${header.migration}`)
+    }
+    sb.push('*/')
+    return sb.join('\n')
+}
+
