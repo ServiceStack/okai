@@ -1,4 +1,4 @@
-import type { MetadataType, MetadataTypes } from "./types"
+import type { MetadataType, MetadataTypes } from "./types.js"
 
 export function plural(word: string, amount?: number): string {
     if (amount !== undefined && amount === 1) {

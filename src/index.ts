@@ -2,14 +2,14 @@ import type { Gist, GistFile, ProjectInfo } from "./types"
 import fs from "fs"
 import path, { parse } from "path"
 import blessed from 'blessed'
-import { projectInfo } from './info'
-import { getGroupName, leftPart, replaceMyApp, trimStart } from "./utils"
-import { toAst } from "./ts-ast"
-import { toMetadataTypes } from "./cs-ast"
-import { CSharpApiGenerator } from "./cs-apis"
-import { CSharpMigrationGenerator } from "./cs-migrations"
-import { TsdDataModelGenerator } from "./tsd-gen"
-import { parseTsdHeader, toTsdHeader, TsdHeader } from "./client"
+import { projectInfo } from './info.js'
+import { getGroupName, leftPart, replaceMyApp, trimStart } from "./utils.js"
+import { toAst } from "./ts-ast.js"
+import { toMetadataTypes } from "./cs-ast.js"
+import { CSharpApiGenerator } from "./cs-apis.js"
+import { CSharpMigrationGenerator } from "./cs-migrations.js"
+import { TsdDataModelGenerator } from "./tsd-gen.js"
+import { parseTsdHeader, toTsdHeader, TsdHeader } from "./client.js"
 
 type Command = {
   type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove"

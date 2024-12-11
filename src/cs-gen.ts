@@ -1,7 +1,7 @@
-import { 
+import type { 
     MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute
 } from "./types"
-import { leftPart } from "./utils"
+import { leftPart } from "./utils.js"
 
 export class CSharpGenerator {
     namespaces: string[] = []

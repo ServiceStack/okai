@@ -1,4 +1,4 @@
-import { leftPart } from "./utils"
+import { leftPart } from "./utils.js"
 
 export type TsdHeader = {
     prompt: string

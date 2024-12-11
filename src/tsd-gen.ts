@@ -1,5 +1,5 @@
-import { ParsedClass, ParsedEnum, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser"
-import { toPascalCase, toCamelCase } from "./utils"
+import { ParsedClass, ParsedEnum, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
+import { toPascalCase, toCamelCase } from "./utils.js"
 
 export class TsdGenerator {
 

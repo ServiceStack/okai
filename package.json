@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "bun run clean && tsc",
+    "build-bun": "bun run clean && bun build.ts",
     "clean": "shx rm -rf ./dist",
     "test": "bun test --",
     "prepublishOnly": "bun run build",

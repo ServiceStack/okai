@@ -1,8 +1,6 @@
-import { 
-    MetadataTypes, MetadataType, MetadataTypeName, MetadataOperationType
-} from "./types"
-import { CSharpGenerator } from "./cs-gen"
-import { indentLines } from "./utils"
+import type { MetadataTypes } from "./types"
+import { CSharpGenerator } from "./cs-gen.js"
+import { indentLines } from "./utils.js"
 
 export class CSharpMigrationGenerator extends CSharpGenerator {
 

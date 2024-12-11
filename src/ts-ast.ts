@@ -1,4 +1,4 @@
-import { TypeScriptParser } from "./ts-parser"
+import { TypeScriptParser } from "./ts-parser.js"
 
 export function toTypeScriptSrc(msg:string) {
     msg = msg.trim()
