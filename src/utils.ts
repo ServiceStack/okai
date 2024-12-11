@@ -83,10 +83,6 @@ export function plural(word: string, amount?: number): string {
     return word
 }
 
-export function indentLines(src:string, indent:string='    ') {
-    return src.split('\n').map(x => indent + x).join('\n')
-}
-
 export function requestKey(date:Date): string {
     return `requests/${timestampKey(date)}`
 }
@@ -97,6 +93,10 @@ export function timestampKey(date: Date): string {
     const day = String(date.getDate()).padStart(2, '0')
     const timestamp = date.valueOf()
     return `${year}/${month}/${day}/${timestamp}`
+}
+
+export function indentLines(src:string, indent:string='    ') {
+    return src.split('\n').map(x => indent + x).join('\n')
 }
 
 export function trimStart(str:string, chars = ' ') {

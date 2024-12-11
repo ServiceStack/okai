@@ -1,6 +1,6 @@
 import type { Gist, GistFile, ProjectInfo } from "./types"
 import fs from "fs"
-import path from "path"
+import path, { parse } from "path"
 import blessed from 'blessed'
 import { projectInfo } from './info'
 import { getGroupName, leftPart, replaceMyApp, trimStart } from "./utils"
@@ -8,9 +8,10 @@ import { toAst } from "./ts-ast"
 import { toMetadataTypes } from "./cs-ast"
 import { CSharpApiGenerator } from "./cs-apis"
 import { CSharpMigrationGenerator } from "./cs-migrations"
+import { parseTsdHeader } from "./client"
 
 type Command = {
-  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list"
+  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove"
   prompt?:    string
   models?:    string
   tsdFile?:   string
@@ -19,8 +20,10 @@ type Command = {
   init?:      boolean
   verbose?:   boolean
   ignoreSsl?: boolean
+  debug?:     boolean
   unknown?:   string[]
   baseUrl:    string
+  script:     string
   list?:      string
   info?:      ProjectInfo
 }
@@ -28,7 +31,12 @@ type Command = {
 function normalizeSwitches(cmd:string) { return cmd.replace(/^-+/, '/') }
 
 function parseArgs(...args: string[]) : Command {
-  const ret:Command = { type: "help", baseUrl: "https://okai.servicestack.com" }
+  const ret:Command = { 
+    type: "help", 
+    baseUrl: process.env.OKAI_URL || "https://okai.servicestack.com",
+    script: path.basename(process.argv[1]) || "okai",
+  }
+
   for (let i=0; i<args.length; i++) {
     const arg = args[i]
     const opt = normalizeSwitches(arg)
@@ -39,35 +47,42 @@ function parseArgs(...args: string[]) : Command {
         case "/help":
             ret.type = "help"
             break
+        case "/v":
         case "/verbose":
             ret.verbose = true
+            break
+        case "/D":
+            ret.verbose = ret.debug = true
             break
         case "/w":
         case "/watch":
             ret.watch = true
             break
+        case "/m":
         case "/models":
             ret.models = args[++i]
             break            
+        case "/l":
         case "/license":
             ret.license = args[++i]
-            break
-        case "/list":
-        case "/ls":
-            ret.type = "list"
-            ret.list = args[++i]
             break
         default:
             ret.unknown = ret.unknown || []
             ret.unknown.push(arg)
             break
       }
+    } else if (ret.type === "help" && ["help","info","init","ls","rm"].includes(arg)) {
+      if (arg == "help")      ret.type = "help"
+      else if (arg == "info") ret.type = "info"
+      else if (arg == "init") ret.type = "init"
+      else if (arg == "rm")   ret.type = "remove"
+      else if (arg == "ls") {
+        ret.type = "list"
+        ret.list = args[++i]
+      }
     } else if (arg.endsWith('.d.ts')) {
-      ret.type = "update"
+      if (ret.type == "help") ret.type = "update"
       ret.tsdFile = arg
-    } else if (ret.type === "help" && ["info","init"].includes(arg)) {
-      if (arg == "info") ret.type = "info"
-      else if (arg == "init") ret.type = "init"      
     } else {
       ret.type = "prompt"
       if (ret.prompt) {
@@ -90,9 +105,16 @@ function parseArgs(...args: string[]) : Command {
 }
 
 export async function cli(cmdArgs:string[]) {
-
-  const script = path.basename(process.argv[1])
   const command = parseArgs(...cmdArgs)
+  const script = command.script
+  
+  if (command.verbose) {
+    console.log(`Command: ${JSON.stringify(command, undefined, 2)}`)    
+  }
+  if (command.debug) {
+    process.exit(0)
+    return
+  }
 
   if (command.type === 'init') {
     let info = {}
@@ -113,19 +135,24 @@ export async function cli(cmdArgs:string[]) {
     process.exit(0)
     return
   }
-  if (command.type === 'help') {
+  if (command.type === 'help' || command.unknown?.length) {
+    const exitCode = command.unknown?.length ? -1 : 0
+    if (command.unknown?.length) {
+      console.log(`Unknown Command: ${command.script} ${command.unknown!.join(' ')}\n`)
+    }
     console.log(`Usage: 
-${script} init          - Initialize okai.json with project info to override default paths
-${script} <prompt>      - Generate new APIs and Tables for the specified prompt
-${script} <models>.d.ts - Regenerate APIs and Tables for the specified TypeScript Definition models
+${script} init               - Initialize okai.json with project info to override default paths
+${script} <prompt>           - Generate new APIs and Tables for the specified prompt
+${script} <models>.d.ts      - Regenerate APIs and Tables for the specified TypeScript Definition models
+${script} rm <models>.d.ts   - Remove data models and associated C# APIs, Tables and Migrations
+${script} ls models          - Display list of available LLM models
 
 Options:
-    -h, --help, ?             Print this message
-        --list models         Display list of available LLM models
-        --models <models>     Specify up to 5 LLM models to use to generate .d.ts Data Models
-        --verbose             Display verbose logging
-        --ignore-ssl-errors   Ignore SSL Errors`)
-    process.exit(0)
+    -m, -models <models,>    Specify up to 5 LLM models to generate .d.ts Data Models (env OKAI_MODELS)
+    -l, -license <LC-xxx>    Specify valid license certificate to use premium models  (env OKAI_LICENSE)
+    -v, -verbose             Display verbose logging
+        --ignore-ssl-errors  Ignore SSL Errors`)
+    process.exit(exitCode)
     return
   }
 
@@ -143,9 +170,6 @@ Options:
   if (command.ignoreSsl) {
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"        
   }
-  if (process.env.OKAI_URL) {
-    command.baseUrl = process.env.OKAI_URL as string
-  }
 
   if (command.type === 'list') {
     if (command.list == "models") {
@@ -162,19 +186,81 @@ Options:
     }
   }
 
-  try {
-    if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
-    console.log(`Generating new APIs and Tables for: ${command.prompt}...`)
-    const gist = await fetchGistFiles(command.baseUrl, command.prompt)
-    // const projectGist = convertToProjectGist(info, gist)
-    const ctx = await createGistPreview(command.prompt, gist)
-    ctx.screen.key('a', () => chooseFile(ctx, info, gist))
-    // ctx.screen.key('a', () => applyCSharpGist(ctx, info, gist, { accept: true }))
-    // ctx.screen.key('d', () => applyCSharpGist(ctx, info, gist, { discard: true }))
-    // ctx.screen.key('S-a', () => applyCSharpGist(ctx, info, gist, { acceptAll: true }))
-    ctx.screen.render()
-  } catch (err) {
-    console.error(err)
+  function assertTsdPath(tsdFile:string) {
+    const tryPaths = [
+      path.join(process.cwd(), tsdFile),
+    ]
+    if (info?.serviceModelDir) {
+      tryPaths.push(path.join(info.serviceModelDir, tsdFile))
+    }
+    const tsdPath = tryPaths.find(fs.existsSync)
+    if (!tsdPath) {
+      console.log(`Could not find: ${command.tsdFile}, tried:\n${tryPaths.join('\n')}`)
+      process.exit(1)
+    }
+    return tsdPath
+  }
+
+  if (command.type === 'update') {
+    let tsdPath = assertTsdPath(command.tsdFile)
+
+    console.log(`Updating: ${tsdPath}...`)
+    const tsdContent = fs.readFileSync(tsdPath, 'utf-8')
+    const header = parseTsdHeader(tsdContent)
+    console.log(JSON.stringify(header, undefined, 2))
+    process.exit(0)
+  }
+  if (command.type === 'remove') {
+    let tsdPath = assertTsdPath(command.tsdFile)
+
+    if (command.verbose) console.log(`Removing: ${tsdPath}...`)
+    const tsdContent = fs.readFileSync(tsdPath, 'utf-8')
+    const header = parseTsdHeader(tsdContent)
+    if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
+
+    if (header?.migration) {
+      const migrationPath = header.migration.startsWith('~/') 
+        ? path.join(info.slnDir, trimStart(header.migration, '~/'))
+        : path.join(process.cwd(), header.migration)
+      if (fs.existsSync(migrationPath)) {
+        fs.unlinkSync(migrationPath)
+        console.log(`Removed: ${migrationPath}`)
+      } else {
+        console.log(`Migration file not found: ${migrationPath}`)
+      }
+    }
+    if (header?.api) {
+      const apiPath = header.api.startsWith('~/')
+        ? path.join(info.slnDir, trimStart(header.api, '~/'))
+        : path.join(process.cwd(), header.api)
+      if (fs.existsSync(apiPath)) {
+        fs.unlinkSync(apiPath)
+        console.log(`Removed: ${apiPath}`)
+      } else {
+        console.log(`APIs file not found: ${apiPath}`)
+      }
+    }
+    fs.unlinkSync(tsdPath)
+    console.log(`Removed: ${tsdPath}`)
+
+    process.exit(0)
+  }
+
+  if (command.type === 'prompt') {
+    try {
+      if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
+      console.log(`Generating new APIs and Tables for: ${command.prompt}...`)
+      const gist = await fetchGistFiles(command.baseUrl, command.prompt)
+      // const projectGist = convertToProjectGist(info, gist)
+      const ctx = await createGistPreview(command.prompt, gist)
+      ctx.screen.key('a', () => chooseFile(ctx, info, gist))
+      // ctx.screen.key('a', () => applyCSharpGist(ctx, info, gist, { accept: true }))
+      // ctx.screen.key('d', () => applyCSharpGist(ctx, info, gist, { discard: true }))
+      // ctx.screen.key('S-a', () => applyCSharpGist(ctx, info, gist, { acceptAll: true }))
+      ctx.screen.render()
+    } catch (err) {
+      console.error(err)
+    }
   }
 }
 
@@ -369,7 +455,7 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
 
   const sb:string[] = []
-  sb.push(`/*prompt: ${titleBar.content}`)
+  sb.push(`/*prompt: ${titleBar.content.replaceAll('/*', '').replaceAll('*/', '')}`)
   sb.push(`api:       ~/${path.join(relativeServiceModelDir,apiFileName)}`)
   sb.push(`migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`)
   sb.push(`*/`)
