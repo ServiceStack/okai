@@ -550,8 +550,7 @@ async function createGistPreview(title:string, gist:Gist) {
 function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:ProjectInfo, gist:Gist) {
   const { screen, titleBar, fileList, preview, statusBar, result } = ctx
   const file = gist.files[result.selectedFile] as GistFile
-  // screen.destroy()
-  process.stdout.write('\x1Bc') // Clear screen
+  console.clear()
 
   const tsd = file.content
   const tsdAst = toAst(tsd)

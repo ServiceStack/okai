@@ -2,7 +2,7 @@ import type {
     MetadataPropertyType, MetadataType, MetadataTypes, MetadataTypesConfig, 
     MetadataAttribute, MetadataTypeName, MetadataOperationType,
 } from "./types"
-import { ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
+import { ParsedAnnotation, ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
 import { plural, toPascalCase } from "./utils.js"
 import { Icons } from "./icons.js"
 
@@ -89,6 +89,37 @@ export class CSharpAst {
         return this.typeMap[type] ?? { name:type, namespace:"MyApp" }
     }
 
+    csharpAttribute(attr:ParsedAnnotation):MetadataAttribute {
+        const to : MetadataAttribute = { name:toPascalCase(attr.name) }
+        const attrType = (value:any) => typeof value == 'string'
+            ? (`${value}`.startsWith('typeof') ? "Type" : "string")
+            : typeof value == "object"
+                ? (value instanceof Date ? "string" : Array.isArray(value) ? "array" : "object")
+                : typeof value
+
+        if (attr.constructorArgs?.length) {
+            to.constructorArgs = attr.constructorArgs.map(x => {
+                const type = attrType(x.value)
+                return { 
+                    name:'String', 
+                    type, 
+                    value: `${x.value}`
+                }
+            })
+        }
+        if (attr.args && Object.keys(attr.args).length) {
+            to.args = Object.entries(attr.args).map(([name,value]) => {
+                const type = attrType(value)
+                return { 
+                    name:toPascalCase(name), 
+                    type, 
+                    value: `${value}`
+                }
+            })
+        }
+        return to
+    }
+
     addMetadataType(cls:ParsedClass) {
         const type:MetadataType = {
             name:this.toCsName(cls.name),
@@ -123,8 +154,15 @@ export class CSharpAst {
                         args: [{ name: "Currency", type: "constant", value: "NumberCurrency.USD" }]
                     })
                 }
+                if (p.annotations?.length) {
+                    prop.attributes = p.annotations.map(x => this.csharpAttribute(x))
+                }
                 return prop
             }),
+        }
+
+        if (cls.annotations?.length) {
+            type.attributes = cls.annotations.map(x => this.csharpAttribute(x))
         }
 
         // Add dependent types first
@@ -614,6 +652,7 @@ export class CSharpAst {
             const icon = Icons[type.name]
             if (icon) {
                 if (!type.attributes) type.attributes = []
+                if (type.attributes.some(x => x.name === 'Icon')) continue
                 type.attributes.push({ 
                     name: "Icon", 
                     args: [{ name: "Svg", type: "string", value:icon }]
