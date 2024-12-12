@@ -12,7 +12,7 @@
     "import": "./dist/index.js"
   },
   "scripts": {
-    "build": "bun run clean && tsc",
+    "build": "bun run clean && tsc && chmod +x ./dist/okai.js",
     "build-bun": "bun run clean && bun build.ts",
     "clean": "shx rm -rf ./dist",
     "test": "bun test --",

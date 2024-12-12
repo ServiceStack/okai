@@ -2,9 +2,9 @@ import type {
     MetadataPropertyType, MetadataType, MetadataTypes, MetadataTypesConfig, 
     MetadataAttribute, MetadataTypeName, MetadataOperationType,
 } from "./types"
-import { ParsedClass, ParsedEnum, ParseResult } from "./ts-parser"
-import { plural, toPascalCase } from "./utils"
-import { Icons } from "./icons"
+import { ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
+import { plural, toPascalCase } from "./utils.js"
+import { Icons } from "./icons.js"
 
 const sys = (name:string, genericArgs?:string[]) => ({ name, namespace: "System", genericArgs })
 const sysObj = sys("object")
