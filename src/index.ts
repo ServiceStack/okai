@@ -22,6 +22,7 @@ type Command = {
   verbose?:   boolean
   ignoreSsl?: boolean
   debug?:     boolean
+  cached?:    boolean
   unknown?:   string[]
   baseUrl:    string
   script:     string
@@ -67,17 +68,34 @@ function parseArgs(...args: string[]) : Command {
         case "/license":
             ret.license = args[++i]
             break
+        case "/url":
+            ret.baseUrl = args[++i]
+            break
+        case "/cached":
+            ret.cached = true
+            break
         default:
             ret.unknown = ret.unknown || []
             ret.unknown.push(arg)
             break
       }
-    } else if (ret.type === "help" && ["help","info","init","ls","rm"].includes(arg)) {
+    } else if (ret.type === "help" && ["help","info","init","ls","rm","update"].includes(arg)) {
       if (arg == "help")      ret.type = "help"
       else if (arg == "info") ret.type = "info"
       else if (arg == "init") ret.type = "init"
-      else if (arg == "rm")   ret.type = "remove"
-      else if (arg == "ls") {
+      else if (arg == "update") {
+        ret.type = "update"
+        ret.tsdFile = args[++i]
+        if (ret.tsdFile && !ret.tsdFile.endsWith('.d.ts')) {
+          ret.tsdFile += '.d.ts'
+        }        
+      } else if (arg == "rm") {
+        ret.type = "remove"
+        ret.tsdFile = args[++i]
+        if (ret.tsdFile && !ret.tsdFile.endsWith('.d.ts')) {
+          ret.tsdFile += '.d.ts'
+        }        
+      } else if (arg == "ls") {
         ret.type = "list"
         ret.list = args[++i]
       }
@@ -94,6 +112,9 @@ function parseArgs(...args: string[]) : Command {
   }
 
   if (ret.type === "prompt") {
+    if (!ret.cached && process.env.OKAI_CACHED) {
+      ret.cached = true
+    }
     if (!ret.models && process.env.OKAI_MODELS) {
       ret.models = process.env.OKAI_MODELS
     }
@@ -350,7 +371,7 @@ Options:
 
 async function fetchGistFiles(command:Command) {
   const url = new URL('/models/gist', command.baseUrl)
-  if (process.env.OKAI_CACHED) {
+  if (command.cached) {
     url.searchParams.append('cached', `1`)
   }
   url.searchParams.append('prompt', command.prompt)
@@ -529,7 +550,9 @@ async function createGistPreview(title:string, gist:Gist) {
 function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:ProjectInfo, gist:Gist) {
   const { screen, titleBar, fileList, preview, statusBar, result } = ctx
   const file = gist.files[result.selectedFile] as GistFile
-  screen.destroy()
+  // screen.destroy()
+  process.stdout.write('\x1Bc') // Clear screen
+
   const tsd = file.content
   const tsdAst = toAst(tsd)
   const csAst = toMetadataTypes(tsdAst)
@@ -565,9 +588,6 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const fullTsdPath = path.join(info.slnDir,relativeServiceModelDir,tsdFileName)
   const fullApiPath = path.join(info.slnDir,relativeServiceModelDir,apiFileName)
   const fullMigrationPath = path.join(info.slnDir,relativeMigrationDir,migrationFileName)
-
-  const clearScreen = blessed.screen()
-  clearScreen.render()
 
   if (!fs.existsSync(path.dirname(fullTsdPath))) {
     console.log(`Directory does not exist: ${path.dirname(fullTsdPath)}`)
