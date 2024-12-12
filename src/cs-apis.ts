@@ -1,8 +1,6 @@
-import type { 
-    MetadataTypes, MetadataType, MetadataTypeName, MetadataOperationType
-} from "./types"
-import { getGroupName, plural, splitCase } from "./utils.js"
-import { CSharpGenerator } from "./cs-gen.js"
+import type { MetadataTypes, MetadataTypeName, MetadataOperationType } from "./types"
+import { getGroupName, plural, splitCase } from "./utils"
+import { CSharpGenerator } from "./cs-gen"
 
 export class CSharpApiGenerator extends CSharpGenerator {
 

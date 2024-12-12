@@ -14,16 +14,6 @@ export function toTypeScriptSrc(msg:string) {
     }
 }
 
-// export function toAst(typescriptSrc:string) {
-//     const parsed = parseTypeScriptSource(typescriptSrc)
-//     return parsed
-// }
-
-// export function toAst(src:string) {
-//     const parsed = TypeScriptMultiParser.parse(src)
-//     return parsed
-// }
-
 export function toAst(src:string) {
     const parser = new TypeScriptParser();
     return parser.parse(src)

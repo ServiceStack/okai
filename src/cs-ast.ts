@@ -2,9 +2,9 @@ import type {
     MetadataPropertyType, MetadataType, MetadataTypes, MetadataTypesConfig, 
     MetadataAttribute, MetadataTypeName, MetadataOperationType,
 } from "./types"
-import { ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
-import { plural, toPascalCase } from "./utils.js"
-import { Icons } from "./icons.js"
+import { ParsedClass, ParsedEnum, ParseResult } from "./ts-parser"
+import { plural, toPascalCase } from "./utils"
+import { Icons } from "./icons"
 
 const sys = (name:string, genericArgs?:string[]) => ({ name, namespace: "System", genericArgs })
 const sysObj = sys("object")
@@ -75,6 +75,10 @@ export class CSharpAst {
     }
 
     csharpType(type:string, propName?:string):MetadataTypeName {
+        if (type.endsWith('[]')) {
+            const elType = this.csharpType(type.substring(0, type.length-2), propName)
+            return Object.assign({}, elType, { name:elType.name + '[]' })
+        }
         if (propName) {
             if (type === "number") {
                 if (this.decimalTypeProps.some(x => propName.toLowerCase().includes(x))) {
@@ -254,21 +258,24 @@ export class CSharpAst {
                         idProp = { name:'Id', type:'int', isPrimaryKey:true, isValueType:true, namespace:'System' }
                         refType.properties?.unshift(idProp)
                     }
-                    const fkProp:MetadataPropertyType = {
-                        name:fkId,
-                        type:idProp.type,
-                        namespace:idProp.namespace,
-                        attributes:[{
-                            name: "References",
-                            constructorArgs: [{
-                                name: "type",
-                                type: "Type",
-                                value: `typeof(${p.type})`
-                            }],
-                            args: []
-                        }]
+                    // Only add if FK Id prop does not already exist
+                    if (!type.properties!.find(x => x.name === fkId)) {
+                        const fkProp:MetadataPropertyType = {
+                            name:fkId,
+                            type:idProp.type,
+                            namespace:idProp.namespace,
+                            attributes:[{
+                                name: "References",
+                                constructorArgs: [{
+                                    name: "type",
+                                    type: "Type",
+                                    value: `typeof(${p.type})`
+                                }],
+                                args: []
+                            }]
+                        }
+                        type.properties!.splice(i, 0, fkProp)
                     }
-                    type.properties!.splice(i, 0, fkProp)
 
                     if (!p.attributes) p.attributes = []
                     p.attributes.push({ name: "Reference" })

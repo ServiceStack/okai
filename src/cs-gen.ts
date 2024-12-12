@@ -1,6 +1,4 @@
-import type { 
-    MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute
-} from "./types"
+import type { MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute } from "./types"
 import { leftPart } from "./utils.js"
 
 export class CSharpGenerator {

@@ -81,6 +81,7 @@ export class TypeScriptParser {
         const props: ParsedProperty[] = []
         const lines = this.cleanBody(classBody).split('\n')
         lines.forEach((line, index) => {
+            if (line.trim().startsWith('//')) return
             const match = line.match(TypeScriptParser.PROPERTY_PATTERN);
             if (match?.groups) {
 
