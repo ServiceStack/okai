@@ -587,7 +587,7 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
 
   const script = path.basename(process.argv[1])
   console.log(`\nTo regenerate classes, update '${tsdFileName}' then run:`)
-  console.log(`$ ${script} ${tsdFileName}`)
+  console.log(`$ ${script} ${tsdFileName}\n\n`)
 
   process.exit(0)
 }
