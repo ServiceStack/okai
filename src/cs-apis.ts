@@ -33,17 +33,17 @@ export class CSharpApiGenerator extends CSharpGenerator {
         }
         if (op.requiredRoles?.length) {
             const adminRole = op.requiredRoles.includes('Admin')
-            if (adminRole) {
+            if (adminRole && !this.typeHasAttr(op.request, 'ValidateIsAdmin')) {
                 sb.push(`[ValidateIsAdmin]`)
             }
             const roles = op.requiredRoles.filter(r => r !== 'Admin')
-            if (roles.length) {
+            if (roles.length && !this.typeHasAttr(op.request, 'ValidateHasRole')) {
                 sb.push(`[ValidateHasRole("${roles[0]}")]`)
             }
-        } else if (op.requiresAuth) {
+        } else if (op.requiresAuth && !this.typeHasAttr(op.request, 'ValidateIsAuthenticated')) {
             sb.push(`[ValidateIsAuthenticated]`)
         }
-        if (cls.description) {
+        if (cls.description && !this.typeHasAttr(op.request, 'Api')) {
             sb.push(`[Api("${cls.description}")]`)
         }
         for (const attr of cls.attributes ?? []) {
@@ -59,7 +59,7 @@ export class CSharpApiGenerator extends CSharpGenerator {
         sb.push('{')
         for (const prop of cls.properties!) {
             this.addNamespace(prop.namespace)
-            if (prop.description) {
+            if (prop.description && !this.propHasAttr(prop, 'ApiMember')) {
                 if (!prop.description.includes('\n')) {
                     sb.push(`    [ApiMember(Description="${prop.description.replace(/"/g, '\\"')}")]`)
                 } else {

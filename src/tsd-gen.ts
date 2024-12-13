@@ -1,4 +1,4 @@
-import { ParsedClass, ParsedEnum, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
+import { ParsedAnnotation, ParsedClass, ParsedEnum, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
 import { toPascalCase, toCamelCase } from "./utils.js"
 
 export class TsdGenerator {
@@ -12,21 +12,52 @@ export class TsdGenerator {
             name: ast.name,
             extends: ast.extends,
             comment: ast.comment,
-            properties: ast.properties
+            properties: ast.properties,
+            annotations: ast.annotations,
         }
         return to
     }
+
+    attrValue(type:string, value:any) {
+        return type === 'string' ? `"${value}"` : value
+    }
+
+    toAttr(attr:ParsedAnnotation) {
+        const sbArgs = []
+        if (attr?.constructorArgs?.length) {
+            for (const arg of attr.constructorArgs) {
+                sbArgs.push(this.attrValue(typeof arg, arg))
+            }
+        }
+        if (attr.args) {
+            for (const [name,value] of Object.entries(attr.args)) {
+                sbArgs.push(`${name}=${this.attrValue(typeof value, value)}`)
+            }
+        }
+        const prefix = attr.comment ? '// ' : ''
+        return `${prefix}@${attr.name}(${sbArgs.join(',')})`
+}
 
     toInterface(ast:ParsedInterface) {
         const sb:string[] = []
         if (ast.comment) {
             sb.push(ast.comment.split('\n').map(x => `// ${x}`).join('\n'))
         }
+        if (ast.annotations?.length) {
+            for (const attr of ast.annotations) {
+                sb.push(this.toAttr(attr))
+            }
+        }
         const extend = ast.extends ? ` extends ${ast.extends}` : ''
         sb.push(`export interface ${ast.name}${extend} {`)
         for (const prop of ast.properties) {
             if (prop.comment) {
                 sb.push(prop.comment.split('\n').map(x => `  // ${x}`).join('\n'))
+            }
+            if (prop.annotations?.length) {
+                for (const attr of prop.annotations) {
+                    sb.push('  ' + this.toAttr(attr))
+                }
             }
             sb.push(`  ${prop.name}${prop.optional ? '?' : ''}: ${prop.type}`)
         }

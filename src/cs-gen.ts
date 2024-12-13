@@ -1,4 +1,4 @@
-import type { MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute } from "./types"
+import type { MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute, MetadataPropertyType } from "./types"
 import { leftPart } from "./utils.js"
 
 export class CSharpGenerator {
@@ -7,6 +7,13 @@ export class CSharpGenerator {
     classes: string[] = []
     enums: string[] = []
     ast: MetadataTypes = { namespaces:[], operations:[], types: [] }
+
+    typeHasAttr(type:MetadataType, name:string) {
+        return type.attributes?.some(x => x.name === name)
+    }
+    propHasAttr(prop:MetadataPropertyType, name:string) {
+        return prop.attributes?.some(x => x.name === name)
+    }
 
     addNamespace(ns?:string) {
         if (!ns || this.namespaces.includes(ns)) return

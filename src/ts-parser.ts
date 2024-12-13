@@ -41,6 +41,7 @@ export interface ParsedAnnotation {
     name: string
     constructorArgs?: any[]
     args?: Record<string, any>
+    comment?: boolean
 }
 
 export interface ParseResult {
@@ -80,7 +81,7 @@ export class TypeScriptParser {
     private getPreviousLine(content: string, position: number): string | undefined {
         const beforePosition = content.substring(0, position)
         const lineNumber = beforePosition.split('\n').length
-        if (lineNumber > 1) {
+        if (lineNumber > 0) {
             const lines = content.split('\n')
             return lines[lineNumber - 2] // -2 because array is 0-based and we want previous line
         }
@@ -95,12 +96,16 @@ export class TypeScriptParser {
         while (previousLine && (!previousLine.match(TypeScriptParser.PROPERTY_PATTERN) || previousLine.match(ANNOTATION))) {
             const annotation = previousLine.match(ANNOTATION) ? parseAnnotation(previousLine) : undefined
             if (annotation) {
+                if (previousLine.trimStart().startsWith('//')) {
+                    annotation.comment = true
+                }
                 annotations.push(annotation)
             } else {
                 const comment = this.getLineComment(previousLine)
                 if (comment) {
                     const annotation = comment.match(ANNOTATION) ? parseAnnotation(comment) : undefined
                     if (annotation) {
+                        annotation.comment = true
                         annotations.push(annotation)
                     } else {
                         commments.unshift(comment)
@@ -113,9 +118,15 @@ export class TypeScriptParser {
         if (lineComment) {
             const annotation = lineComment.match(ANNOTATION) ? parseAnnotation(lineComment) : undefined
             if (annotation) {
+                annotation.comment = true
                 annotations.push(annotation)
             } else {
                 commments.push(lineComment)
+            }
+        } else if (line.match(ANNOTATION)) {
+            const annotation = parseAnnotation(line)
+            if (annotation) {
+                annotations.push(annotation)
             }
         }
 
@@ -196,8 +207,10 @@ export class TypeScriptParser {
 
             const cls: ParsedClass = {
                 name: match[1],
-                extends: match[2],
                 properties: this.parseClassProperties(body),
+            }
+            if (match[2]) {
+                cls.extends = match[2]
             }
 
             if (previousLine) {
@@ -220,9 +233,14 @@ export class TypeScriptParser {
 
             const cls: ParsedClass = {
                 name: match[1],
-                extends: match[2],
-                implements: match[3]?.split(',').map(i => i.trim()),
                 properties: this.parseClassProperties(body),
+            }
+            if (match[2]) {
+                cls.extends = match[2]
+            }
+            const impls = match[3]?.split(',').map(i => i.trim())
+            if (impls) {
+                cls.implements = impls
             }
 
             if (previousLine) {
