@@ -3,6 +3,7 @@ export type GistFile = {
     content: string
     type: string
     size: number
+    raw_url: string
 }
 export type Gist = {
     files: { [key: string]: GistFile }

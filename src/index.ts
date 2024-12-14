@@ -12,7 +12,7 @@ import { TsdDataModelGenerator } from "./tsd-gen.js"
 import { parseTsdHeader, toTsdHeader, TsdHeader } from "./client.js"
 
 type Command = {
-  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove"
+  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove" | "accept"
   prompt?:    string
   models?:    string
   tsdFile?:   string
@@ -27,6 +27,7 @@ type Command = {
   baseUrl:    string
   script:     string
   list?:      string
+  accept?:    string
   info?:      ProjectInfo
 }
 
@@ -79,7 +80,7 @@ function parseArgs(...args: string[]) : Command {
             ret.unknown.push(arg)
             break
       }
-    } else if (ret.type === "help" && ["help","info","init","ls","rm","update"].includes(arg)) {
+    } else if (ret.type === "help" && ["help","info","init","ls","rm","update","accept"].includes(arg)) {
       if (arg == "help")      ret.type = "help"
       else if (arg == "info") ret.type = "info"
       else if (arg == "init") ret.type = "init"
@@ -98,6 +99,9 @@ function parseArgs(...args: string[]) : Command {
       } else if (arg == "ls") {
         ret.type = "list"
         ret.list = args[++i]
+      } else if (arg == "accept") {
+        ret.type = "accept"
+        ret.accept = args[++i]
       }
     } else if (arg.endsWith('.d.ts')) {
       if (ret.type == "help") ret.type = "update"
@@ -348,6 +352,11 @@ Options:
     process.exit(0)
   }
 
+  if (command.type == "accept") {
+    await acceptGist(command, command.accept)
+    process.exit(0)
+  }
+
   if (command.type === 'prompt') {
     try {
       if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
@@ -366,6 +375,18 @@ Options:
   } else {
     console.log(`Unknown command: ${command.type}`)
     process.exit(1)
+  }
+}
+
+async function acceptGist(command:Command, id:string) { 
+  try {
+    const url = new URL(`/gist/${id}/accept`, command.baseUrl)
+    const r = await fetch(url, {
+      method: 'POST',
+    })
+    const res = await r.text()
+  } catch (err) {
+    if (command.verbose) console.error(err)
   }
 }
 
@@ -418,6 +439,7 @@ function convertToProjectGist(info: ProjectInfo, gist: Gist) {
         content,
         type,
         size,
+        raw_url: fullPath,
       }
 
     } else if (writeFileName.startsWith('MyApp/Migrations/') && info.migrationsDir) {
@@ -428,6 +450,7 @@ function convertToProjectGist(info: ProjectInfo, gist: Gist) {
         content,
         type,
         size,
+        raw_url: fullPath,
       })
     } else {
       const fullPath = path.join(info.slnDir, writeFileName)
@@ -438,6 +461,7 @@ function convertToProjectGist(info: ProjectInfo, gist: Gist) {
         content,
         type,
         size,
+        raw_url: fullPath,
       })
     }
   }
@@ -552,6 +576,12 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const file = gist.files[result.selectedFile] as GistFile
   console.clear()
 
+  let acceptTask = null
+  if (file.raw_url) {
+    const acceptUrl = path.join(file.raw_url, 'accept')
+    acceptTask = fetch(acceptUrl, { method: 'POST' })
+  }
+
   const tsd = file.content
   const tsdAst = toAst(tsd)
   const csAst = toMetadataTypes(tsdAst)
@@ -608,7 +638,14 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   console.log(`\nTo regenerate classes, update '${tsdFileName}' then run:`)
   console.log(`$ ${script} ${tsdFileName}\n\n`)
 
-  process.exit(0)
+  if (acceptTask) {
+    acceptTask.then(r => {
+      process.exit(0)
+    })
+  } else {
+    process.exit(0)
+  }
+
 }
 
 function writeFile(info:ProjectInfo, filename: string, content:string) {
