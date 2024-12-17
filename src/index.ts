@@ -503,7 +503,7 @@ async function createGistPreview(title:string, gist:Gist) {
     style: {
       selected: {
         bg: 'blue',
-        fg: 'white'
+        fg: 'black'
       }
     },
     keys: true,
@@ -538,7 +538,7 @@ async function createGistPreview(title:string, gist:Gist) {
     height: 1,
     content: 'Press (a) accept  (q) quit',
     style: {
-      fg: 'white',
+      fg: 'black',
       bg: 'blue'
     }
   })
@@ -592,6 +592,21 @@ async function createGistPreview(title:string, gist:Gist) {
       // titleBar.setContent(`DOWN ${maxScroll} = ${contentHeight} - ${boxHeight}; min(${maxScroll}, ${currentScroll} + ${scrollAmount}) => ${newScrollPosition}`)
       screen.render()
     }
+
+    // Home key handler (scroll to top)
+    if (key.name === 'home') {
+      preview.setScroll(0)
+      screen.render()
+    }
+
+    // End key handler (scroll to bottom)
+    if (key.name === 'end') {
+      // Calculate max scroll position to show last page of content
+      const maxScroll = Math.max(0, contentHeight - boxHeight + 2)
+      preview.setScroll(maxScroll)
+      screen.render()
+    }
+
   })
 
   // Handle key events
