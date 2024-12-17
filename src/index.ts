@@ -585,7 +585,7 @@ async function createGistPreview(title:string, gist:Gist) {
     // Page Down handler
     if (key.name === 'pagedown') {
       // Calculate max scroll position to prevent scrolling beyond content
-      const maxScroll = Math.max(0, contentHeight - boxHeight + 1)
+      const maxScroll = Math.max(0, contentHeight - boxHeight + 2)
       // Calculate new scroll position, ensuring it doesn't exceed max
       const newScrollPosition = Math.min(maxScroll, currentScroll + scrollAmount)
       preview.setScroll(newScrollPosition)
