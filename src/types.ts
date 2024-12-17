@@ -17,6 +17,11 @@ export type ProjectInfo = {
     serviceModelDir?: string
     serviceInterfaceDir?: string
 }
+export type TsdHeader = {
+    prompt: string
+    api: string
+    migration?: string
+}
 
 // from https://raw.githubusercontent.com/ServiceStack/servicestack-vue/refs/heads/main/src/types.ts
 export type FormStyle = "slideOver" | "card"

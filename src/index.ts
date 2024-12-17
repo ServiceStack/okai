@@ -1,15 +1,15 @@
-import type { Gist, GistFile, ProjectInfo } from "./types"
+import type { Gist, GistFile, ProjectInfo, TsdHeader } from "./types"
 import fs from "fs"
 import path, { parse } from "path"
 import blessed from 'blessed'
 import { projectInfo } from './info.js'
-import { getGroupName, leftPart, replaceMyApp, trimStart } from "./utils.js"
+import { parseTsdHeader, toTsdHeader, getGroupName, leftPart, replaceMyApp, trimStart, tsdWithoutPrompt } from "./utils.js"
 import { toAst } from "./ts-ast.js"
 import { toMetadataTypes } from "./cs-ast.js"
 import { CSharpApiGenerator } from "./cs-apis.js"
 import { CSharpMigrationGenerator } from "./cs-migrations.js"
 import { TsdDataModelGenerator } from "./tsd-gen.js"
-import { parseTsdHeader, toTsdHeader, TsdHeader } from "./client.js"
+import { getFileContent } from "./client.js"
 
 type Command = {
   type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove" | "accept"
@@ -320,7 +320,7 @@ Options:
       process.exit(0)
     }
   }
-  if (command.type === 'remove') {
+  if (command.type === "remove") {
     let tsdPath = assertTsdPath(command.tsdFile)
 
     if (command.verbose) console.log(`Removing: ${tsdPath}...`)
@@ -357,17 +357,14 @@ Options:
     process.exit(0)
   }
 
-  if (command.type === 'prompt') {
+  if (command.type === "prompt") {
     try {
       if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
       console.log(`Generating new APIs and Tables for: ${command.prompt}...`)
       const gist = await fetchGistFiles(command)
       // const projectGist = convertToProjectGist(info, gist)
       const ctx = await createGistPreview(command.prompt, gist)
-      ctx.screen.key('a', () => chooseFile(ctx, info, gist))
-      // ctx.screen.key('a', () => applyCSharpGist(ctx, info, gist, { accept: true }))
-      // ctx.screen.key('d', () => applyCSharpGist(ctx, info, gist, { discard: true }))
-      // ctx.screen.key('S-a', () => applyCSharpGist(ctx, info, gist, { acceptAll: true }))
+      ctx.screen.key('a', () => chooseFile(ctx, info, gist, command))
       ctx.screen.render()
     } catch (err) {
       console.error(err)
@@ -381,10 +378,12 @@ Options:
 async function acceptGist(command:Command, id:string) { 
   try {
     const url = new URL(`/gist/${id}/accept`, command.baseUrl)
+    if (command.verbose) console.log(`POST: ${url}`)
     const r = await fetch(url, {
       method: 'POST',
     })
     const res = await r.text()
+    if (command.verbose) console.log(`Accepted: ${res}`)
   } catch (err) {
     if (command.verbose) console.error(err)
   }
@@ -392,19 +391,23 @@ async function acceptGist(command:Command, id:string) {
 
 async function fetchGistFiles(command:Command) {
   const url = new URL('/models/gist', command.baseUrl)
+  const formData = new FormData()
   if (command.cached) {
-    url.searchParams.append('cached', `1`)
+    formData.append('cached', `1`)
   }
-  url.searchParams.append('prompt', command.prompt)
+  formData.append('prompt', command.prompt)
   if (command.models) {
-    url.searchParams.append('models', command.models)
+    formData.append('models', command.models)
     if (command.license) {
-      url.searchParams.append('license', command.license)
+      formData.append('license', command.license)
     }
   }
   
-  if (command.verbose) console.log(`GET: ${url}`)
-  const res = await fetch(url)
+  if (command.verbose) console.log(`POST: ${url}`)
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  })
   if (!res.ok) {
     try {
       const errorResponse = await res.json()
@@ -519,7 +522,7 @@ async function createGistPreview(title:string, gist:Gist) {
     border: {
       type: 'line'
     },
-    content: gist.files[firstFilename].content,
+    content: getFileContent(gist.files[firstFilename]),
     scrollable: true,
     alwaysScroll: true,
     keys: true,
@@ -556,13 +559,46 @@ async function createGistPreview(title:string, gist:Gist) {
     result.selectedFile = filename
     const file = gist.files[filename]
     if (file) {
-      preview.setContent(file.content)
+      const content = getFileContent(file)
+      preview.setContent(content)
+      screen.render()
+    }
+  })
+
+  fileList.on('keypress', (ch, key) => {
+    const boxHeight = preview.height as number
+    const currentScroll = preview.getScroll()
+    const contentHeight = preview.getLines().length
+  
+    // Calculate scroll amount (half the box height)
+    const scrollAmount = Math.floor(boxHeight / 2)
+  
+    // Page Up handler
+    if (key.name === 'pageup') {
+      // Calculate new scroll position, ensuring it doesn't go below 0
+      const newScrollPosition = Math.max(0, currentScroll - scrollAmount)
+      preview.setScroll(newScrollPosition)
+      // titleBar.setContent(`UP ${newScrollPosition} = ${currentScroll} - ${scrollAmount}`)
+      screen.render()
+    }
+    
+    // Page Down handler
+    if (key.name === 'pagedown') {
+      // Calculate max scroll position to prevent scrolling beyond content
+      const maxScroll = Math.max(0, contentHeight - boxHeight + 1)
+      // Calculate new scroll position, ensuring it doesn't exceed max
+      const newScrollPosition = Math.min(maxScroll, currentScroll + scrollAmount)
+      preview.setScroll(newScrollPosition)
+      // titleBar.setContent(`DOWN ${maxScroll} = ${contentHeight} - ${boxHeight}; min(${maxScroll}, ${currentScroll} + ${scrollAmount}) => ${newScrollPosition}`)
       screen.render()
     }
   })
 
   // Handle key events
   screen.key(['q', 'C-c'], () => process.exit(0))
+  // screen.on('keypress', (ch, key) => {
+  //   console.log('keypress', ch, key)
+  // })
 
   // Focus on file list
   fileList.focus()
@@ -571,19 +607,23 @@ async function createGistPreview(title:string, gist:Gist) {
   return { screen, titleBar, fileList, preview, statusBar, result }
 }
 
-function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:ProjectInfo, gist:Gist) {
+function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:ProjectInfo, gist:Gist, comamnd:Command) {
   const { screen, titleBar, fileList, preview, statusBar, result } = ctx
   const file = gist.files[result.selectedFile] as GistFile
+  screen.destroy()
   console.clear()
 
   let acceptTask = null
   if (file.raw_url) {
     const acceptUrl = path.join(file.raw_url, 'accept')
+    if (comamnd.verbose) console.log(`POST ${acceptUrl}`)
     acceptTask = fetch(acceptUrl, { method: 'POST' })
-  }
+  } 
 
-  const tsd = file.content
-  const tsdAst = toAst(tsd)
+  const origTsd = file.content
+  const tsdAst = toAst(origTsd)
+	const generator = new TsdDataModelGenerator()
+	const tsd = generator.generate(tsdAst)
   const csAst = toMetadataTypes(tsdAst)
   const groupName = getGroupName(csAst)
 
@@ -636,16 +676,21 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
 
   const script = path.basename(process.argv[1])
   console.log(`\nTo regenerate classes, update '${tsdFileName}' then run:`)
-  console.log(`$ ${script} ${tsdFileName}\n\n`)
+  console.log(`$ ${script} ${tsdFileName}`)
 
   if (acceptTask) {
-    acceptTask.then(r => {
-      process.exit(0)
-    })
+    acceptTask.then((r:Response) => r.text())
+      .then((txt:string) => {
+        if (comamnd.verbose) console.log(`${txt}`)
+        process.exit(0)
+      })
+      .catch((err:any) => {
+        if (comamnd.verbose) console.log(`ERROR: ${err.message ?? err}`)
+        process.exit(0)
+      })
   } else {
     process.exit(0)
   }
-
 }
 
 function writeFile(info:ProjectInfo, filename: string, content:string) {

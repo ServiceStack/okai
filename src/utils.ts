@@ -1,4 +1,4 @@
-import type { MetadataType, MetadataTypes } from "./types"
+import type { MetadataType, MetadataTypes, TsdHeader } from "./types"
 
 export function plural(word: string, amount?: number): string {
     if (amount !== undefined && amount === 1) {
@@ -90,6 +90,9 @@ export function indentLines(src:string, indent:string='    ') {
 export function requestKey(date:Date): string {
     return `requests/${timestampKey(date)}`
 }
+export function acceptedKey(date:Date): string {
+    return `accepted/${timestampKey(date)}`
+}
 
 export function timestampKey(date: Date): string {
     const year = date.getFullYear()
@@ -125,8 +128,55 @@ export function refCount(t:MetadataType) {
     return t.properties?.filter(
         x => x.attributes?.some(x => x.name === 'References')).length || 0
 }
+
 export function getGroupName(ast:MetadataTypes) {
     return plural(ast.types.sort((x,y) => refCount(y) - refCount(x))[0].name)
+}
+
+export function tsdWithPrompt(tsd:string, prompt:string) {
+    return `/*prompt:  ${prompt}\n*/\n\n${tsd}`
+}
+
+export function tsdWithoutPrompt(tsd:string) {
+    return tsd.trim().startsWith('/*prompt:')
+        ? tsd.substring(tsd.indexOf('*/') + 2).trim()
+        : tsd
+}
+
+export function parseTsdHeader(tsd:string): TsdHeader | null {
+    const header = tsd.includes('/*prompt:')
+        ? leftPart(tsd, '*/')!.replace('/*prompt:','').trim()
+        : null
+    if (!header) return null
+
+    const lines = header.split('\n')
+    const to:TsdHeader = { prompt:'', api:'' }
+    for (const line of lines) {
+        if (line.startsWith('api:')) {
+            to.api = line.replace('api:','').trim()
+        } else if (line.startsWith('migration:')) {
+            to.migration = line.replace('migration:','').trim()
+        } else if (!to.api && !to.migration && line.trim()) {
+            to.prompt += line.trim() + '\n'
+        }
+    }
+    if (!to.api) return null
+    to.prompt = to.prompt.trim()
+    to.api = to.api.trim()
+    if (to.migration) to.migration = to.migration.trim()
+    return to
+}
+
+export function toTsdHeader(header:TsdHeader): string {
+    const sb = [
+        `/*prompt:  ${header.prompt}`,
+        `api:       ${header.api}`,        
+    ]
+    if (header.migration) {
+        sb.push(`migration: ${header.migration}`)
+    }
+    sb.push('*/')
+    return sb.join('\n')
 }
 
 export function toPascalCase(s?: string) {
