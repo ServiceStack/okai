@@ -171,18 +171,19 @@ export async function cli(cmdArgs:string[]) {
     if (command.unknown?.length) {
       console.log(`Unknown Command: ${command.script} ${command.unknown!.join(' ')}\n`)
     }
+    const bin = script.padStart(7, ' ')
     console.log(`Usage: 
-${script} <prompt>             Generate new TypeScript Data Models, C# APIs and Migrations from prompt
+${bin} <prompt>             Generate new TypeScript Data Models, C# APIs and Migrations from prompt
     -m, -models <model,>     Specify up to 5 LLM models to generate .d.ts Data Models
     -l, -license <LC-xxx>    Specify valid license certificate or key to use premium models
 
-${script} <models>.d.ts        Regenerate C# *.cs files for Data Models defined in the TypeScript .d.ts file
+${bin} <models>.d.ts        Regenerate C# *.cs files for Data Models defined in the TypeScript .d.ts file
     -w, -watch               Watch for changes to <models>.d.ts and regenerate *.cs on save
 
-${script} rm <models>.d.ts     Remove <models>.d.ts and its generated *.cs files
-${script} ls models            Display list of available premium LLM models
-${script} init                 Initialize okai.json with project info to override default paths
-${script} info                 Display current project info
+${bin} rm <models>.d.ts     Remove <models>.d.ts and its generated *.cs files
+${bin} ls models            Display list of available premium LLM models
+${bin} init                 Initialize okai.json with project info to override default paths
+${bin} info                 Display current project info
 
 Options:
     -v, -verbose             Display verbose logging
