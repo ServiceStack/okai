@@ -110,32 +110,58 @@ export class TsdGenerator {
     }
 }
 
+type ParsedType = { name:string, properties?: ParsedProperty[] }
+
 export class TsdDataModelGenerator extends TsdGenerator
 {
-    generate(ast:ParseResult) {
-        function convertProps(properties?: ParsedProperty[]) {
-            properties?.forEach(prop => {
-                prop.name = toCamelCase(prop.name)
-                if (prop.type === 'User') {
-                    prop.name = 'userId'
-                    prop.type = 'string'
-                }
-                if (prop.type === 'User[]') {
-                    if (prop.name.endsWith('s')) {
-                        prop.name = prop.name.slice(0, -1) + 'Ids'
-                    }
-                    prop.type = 'string[]'
-                }
-            })
-        }
+    duplicateTypePropMap : Record<string,string> = {
+        note: 'content',
+    }
 
+    convertType(type:ParsedType) {
+        type.name = toPascalCase(type.name)
+        type.properties?.forEach(prop => {
+            prop.name = toCamelCase(prop.name)
+            if (prop.type.startsWith('Array<')) {
+                const elType = prop.type.slice('Array<'.length, -1)
+                prop.type = elType + '[]'
+            }
+            if (prop.type === 'User') {
+                prop.name = 'userId'
+                prop.type = 'string'
+            }
+            if (prop.type === 'User[]') {
+                if (prop.name.endsWith('s')) {
+                    prop.name = prop.name.slice(0, -1) + 'Ids'
+                }
+                prop.type = 'string[]'
+            }
+        })
+        this.rewriteDuplicateTypePropNames(type)
+        this.rewriteSelfReferencingIds(type)
+    }
+
+    rewriteDuplicateTypePropNames(type:ParsedType) {
+        const duplicateProp = type.properties?.find(x => toPascalCase(x.name) === type.name)
+        if (duplicateProp) {
+            const newName = this.duplicateTypePropMap[duplicateProp.name] ?? 'value'
+            duplicateProp.name = newName
+        }
+    }
+
+    rewriteSelfReferencingIds(type:ParsedType) {
+        const selfRefId = type.properties?.find(x => x.name.toLowerCase() === `${type.name}id`.toLowerCase())
+        if (selfRefId) {
+            selfRefId.name = `parentId`
+        }
+    }
+
+    generate(ast:ParseResult) {
         ast.classes?.forEach(cls => {
-            cls.name = toPascalCase(cls.name)
-            convertProps(cls.properties)
+            this.convertType(cls)
         })
         ast.interfaces?.forEach(cls => {
-            cls.name = toPascalCase(cls.name)
-            convertProps(cls.properties)
+            this.convertType(cls)
         })
         ast.enums?.forEach(e => {
             e.name = toPascalCase(e.name)
