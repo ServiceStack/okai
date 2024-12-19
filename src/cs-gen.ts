@@ -45,7 +45,7 @@ export class CSharpGenerator {
                 body += value
             }            
         }
-        if (!body && attr.args?.length) {
+        if (attr.args?.length) {
             for (const arg of attr.args) {
                 this.addNamespace(arg.namespace)
                 if (body) body += ','

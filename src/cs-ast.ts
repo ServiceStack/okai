@@ -3,7 +3,7 @@ import type {
     MetadataAttribute, MetadataTypeName, MetadataOperationType,
 } from "./types"
 import { ParsedAnnotation, ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
-import { plural, toPascalCase } from "./utils.js"
+import { leftPart, plural, rightPart, toPascalCase } from "./utils.js"
 import { Icons } from "./icons.js"
 
 const sys = (name:string, genericArgs?:string[]) => ({ name, namespace: "System", genericArgs })
@@ -41,6 +41,138 @@ export class CSharpAst {
     commonValueTypes = [
         "int","Int32","long","Int64","string",
     ]
+    requestAttrs = [
+        'api',
+        'apiResponse',
+        'validateRequest',
+        'validateIsAuthenticated',
+        'validateIsAdmin',
+        'validateAuthSecret',
+        'validateHasRole',
+        'validateHasRoles',
+        'validateHasPermission',
+        'validateHasPermissions',
+        'validateHasClaim',
+        'validateHasScope',
+        'validateApiKey',
+    
+        'queryDb',
+        'queryData',
+        'autoFilter',
+        'autoPopulate',
+    
+        'route',
+        'field',
+        'tag',
+        'notes',
+
+        'meta',
+        'dataContract',
+    ].map(x => x.toLowerCase())
+    modelAttrs = [
+        'schema',
+        'compositeKey',
+        'preCreateTable',
+        'preDropTable',
+        'postCreateTable',
+        'postDropTable',
+    
+        'namedConnection',
+        'alias',
+        'icon',
+
+        'meta',
+        'dataContract',
+    ].map(x => x.toLowerCase())
+    requestPropAttrs = [
+        'validate',
+        'validateNull',
+        'validateEmpty',
+        'validateEmail',
+        'validateNotNull',
+        'validateNotEmpty',
+        'validateCreditCard',
+        'validateLength',
+        'validateExactLength',
+        'validateMinimumLength',
+        'validateMaximumLength',
+        'validateLessThanLength',
+        'validateLessThanOrEqual',
+        'validateGreaterThanLength',
+        'validateGreaterThanOrEqual',
+        'validateScalePrecision',
+        'validateRegularExpression',
+        'validateEqualExpression',
+        'validateNotEqualExpression',
+        'validateInclusiveBetween',
+        'validateExclusiveBetween',
+        'allowReset',
+        'denyReset',
+    
+        'queryDbField',
+        'queryDataField',
+        'autoUpdate',
+        'autoDefault',
+        'autoMap',
+        'autoIgnore',
+        'autoApply',
+
+        'apiMember',
+        'apiAllowableValues',
+        'dataMember',
+        'input',
+        'fieldCss',
+        'uploadTo',
+    ].map(x => x.toLowerCase())
+    modelPropAttrs = [
+        'alias',
+        'meta',
+        'priority',
+    
+        'primaryKey',
+        'autoId',
+        'autoIncrement',
+        'index',
+        'compute',
+        'computed',
+        'persisted',
+        'uniqueConstraint',
+        'addColumn',
+        'removeColumn',
+        'belongTo',
+        'checkConstraint',
+        'customField',
+        'customSelect',
+        'customInsert',
+        'customUpdate',
+        'decimalLength',
+        'Default',
+        'description',
+        'enumAsInt',
+        'excludeMetadata',
+        'excludeFromDescription',
+        'explicitAutoQuery',
+        'foreignKey',
+        'ignore',
+        'ignoreOnUpdate',
+        'ignoreOnInsert',
+        'ignoreDataMember',
+        'reference',
+        'referenceField',
+        'references',
+        'required',
+        'returnOnInsert',
+        'rowVersion',
+        'unique',
+    
+        'dataMember',
+        'ref',
+        'format',
+        'intl',
+        'intlNumber',
+        'intlDateTime',
+        'intlRelativeTime',
+    ].map(x => x.toLowerCase())
 
     unwrap(type:string) {
         if (type.endsWith("?")) {
@@ -90,20 +222,29 @@ export class CSharpAst {
     }
 
     csharpAttribute(attr:ParsedAnnotation):MetadataAttribute {
-        const to : MetadataAttribute = { name:toPascalCase(attr.name) }
+
+        const attrName = attr.name.includes('.') 
+            ? rightPart(attr.name, '.')!
+            : attr.name
+
+        const to : MetadataAttribute = { name:toPascalCase(attrName) }
         const attrType = (value:any) => typeof value == 'string'
-            ? (`${value}`.startsWith('typeof') ? "Type" : "string")
+            ? ((value.startsWith('typeof(') || value.startsWith('nameof(')) && value.endsWith(')')
+                ? "constant" : 
+                value.match(/^[A-Z][A-Za-z0-9_]+\.[A-Z][A-Za-z0-9_]+$/) //Axx.Bxx
+                    ? "constant"
+                    : "string")
             : typeof value == "object"
                 ? (value instanceof Date ? "string" : Array.isArray(value) ? "array" : "object")
                 : typeof value
 
         if (attr.constructorArgs?.length) {
             to.constructorArgs = attr.constructorArgs.map(x => {
-                const type = attrType(x.value)
+                const type = attrType(x)
                 return { 
                     name:'String', 
-                    type, 
-                    value: `${x.value}`
+                    type,
+                    value:`${x}`
                 }
             })
         }
@@ -113,9 +254,12 @@ export class CSharpAst {
                 return { 
                     name:toPascalCase(name), 
                     type, 
-                    value: `${value}`
+                    value:`${value}`
                 }
             })
+        }
+        if (attr.name.includes('.')) {
+            to.namespace = leftPart(attr.name, '.')!
         }
         return to
     }
@@ -124,14 +268,17 @@ export class CSharpAst {
         const type:MetadataType = {
             name:this.toCsName(cls.name),
             namespace:"MyApp",
-            description:cls.comment,
             properties:cls.properties.map(p => {
                 const type = this.csharpType(p.type, p.name)
                 const prop:MetadataPropertyType = {
                     name:this.toCsName(p.name),
                     type: p.optional ? this.nullable(type.name) : type.name!,
-                    namespace:type.namespace,
-                    description:p.comment,
+                }
+                if (type.namespace) {
+                    prop.namespace = type.namespace
+                }
+                if (p.comment) {
+                    prop.description = p.comment
                 }
                 if (prop.name === 'Id') {
                     prop.isPrimaryKey = true
@@ -160,7 +307,12 @@ export class CSharpAst {
                 return prop
             }),
         }
-
+        if (cls.comment) {
+            type.description = cls.comment
+        }
+        if (cls.extends) {
+            type.inherits = { name:this.toCsName(cls.extends) }
+        }
         if (cls.annotations?.length) {
             type.attributes = cls.annotations.map(x => this.csharpAttribute(x))
         }
@@ -419,6 +571,40 @@ export class CSharpAst {
         }
     }
 
+    attrsFor(dtoType:"Read"|"Create"|"Update"|"Delete"|"Model", attrs?:MetadataAttribute[]) {
+        const requestAttrs = this.requestAttrs
+        const requestPropAttrs = this.requestPropAttrs
+        const modelAttrs = this.modelAttrs
+        const modelPropAttrs = this.modelPropAttrs
+        function shouldInclude(attr:MetadataAttribute, dtoType:"Read"|"Create"|"Update"|"Delete"|"Model") {
+            const ns = attr.namespace
+            if (ns) {
+                if (ns == "All") return true
+                if (ns == "Read") return dtoType == "Read"
+                if (ns == "Create") return dtoType == "Create"
+                if (ns == "Update") return dtoType == "Update"
+                if (ns == "Delete") return dtoType == "Delete"
+                if (ns == "Write") return ["Create","Update","Delete"].includes(dtoType)
+            } else {
+                const isRequest = dtoType != "Model"
+                const nameLower = attr.name.toLowerCase()
+                if (isRequest) {
+                    return requestAttrs.includes(nameLower) || requestPropAttrs.includes(nameLower)
+                } else {
+                    return modelAttrs.includes(nameLower) || modelPropAttrs.includes(nameLower)
+                }
+            }
+            return true
+        }
+        const to:MetadataAttribute[] = []
+        for (const attr of attrs || []) {
+            if (shouldInclude(attr, dtoType)) {
+                to.push(attr)
+            }
+        }
+        return to
+    }
+
     createAutoCrudApis() {
         for (const type of this.classes) {
             const hasPk = type.properties?.some(x => x.isPrimaryKey)
@@ -439,21 +625,19 @@ export class CSharpAst {
                 args: [{ name:"Field", type:"string", value:"col-span-12" }]
             }]
 
-            const ignoreDtoAttrs = ['AutoIncrement']
-            const idsProps = pk 
-                ? [
-                    Object.assign({}, pk, { 
-                        type: `${this.nullable(pk.type)}`,
-                        attributes:pk.attributes?.filter(a => !ignoreDtoAttrs.includes(a.name)),
-                    }),
-                    { 
-                        name: `${pk.name}s`,
-                        type: "List`1?",
-                        namespace: "System.Collections.Generic",
-                        genericArgs: [pk.type]
-                    } as MetadataPropertyType
-                ]
-                : []
+            function onlyAttrs(attrs:MetadataAttribute[]|null|undefined, only:string[]) {
+                if (!attrs) return
+                return attrs.filter(x => only.includes(x.name))
+            }
+
+            const idsProp = pk 
+                ? { 
+                    name: `${pk.name}s`,
+                    type: "List`1?",
+                    namespace: "System.Collections.Generic",
+                    genericArgs: [pk.type]
+                  } as MetadataPropertyType
+                : undefined
 
             if (!queryApi) {
                 queryApi = {
@@ -468,7 +652,16 @@ export class CSharpAst {
                             namespace: "ServiceStack",
                             genericArgs: [type.name]
                         },
-                        properties: idsProps,
+                        properties: pk 
+                            ? [
+                                Object.assign({}, pk, { 
+                                    type: `${this.nullable(pk.type)}`,
+                                    attributes:onlyAttrs(pk.attributes, this.requestPropAttrs),
+                                }),
+                                idsProp!
+                            ]
+                            : [],
+                        attributes: this.attrsFor("Read", type.attributes),
                     },
                     returnType: {
                         name: "QueryResponse`1",
@@ -478,16 +671,17 @@ export class CSharpAst {
                     dataModel,
                 }
                 if (isAuditBase) {
-                    if (!queryApi.request.attributes) queryApi.request.attributes = []
-                    // [AutoApply(Behavior.AuditQuery)]
-                    queryApi.request.attributes!.push({
-                        name: "AutoApply",
-                        constructorArgs: [{
-                            name: "name",
-                            type: "constant",
-                            value: "Behavior.AuditQuery"
-                        }]
-                    })
+                    if (!queryApi.request.attributes?.find(x => x.name === 'AutoApply')) {
+                        // [AutoApply(Behavior.AuditQuery)]
+                        queryApi.request.attributes!.push({
+                            name: "AutoApply",
+                            constructorArgs: [{
+                                name: "name",
+                                type: "constant",
+                                value: "Behavior.AuditQuery"
+                            }]
+                        })
+                    }
                 }
                 this.result.operations.push(queryApi)
             }
@@ -495,7 +689,6 @@ export class CSharpAst {
             let createApi = this.result.operations.find(x => x.request.name === createName) as MetadataOperationType
             if (!createApi) {
                 const ignorePropsWithAttrs = ['AutoIncrement','Reference']
-                const ignoreAttrs:string[] = []
                 createApi = {
                     method: "POST",
                     actions: ["ANY"],
@@ -513,9 +706,10 @@ export class CSharpAst {
                                 type: x.isPrimaryKey 
                                     ? x.type 
                                     : `${x.type}`,
-                                    attributes:x.attributes?.filter(a => !ignoreAttrs.includes(a.name)),
+                                    attributes:onlyAttrs(x.attributes, this.requestPropAttrs),
                                 })
                         ),
+                        attributes: this.attrsFor("Create", type.attributes),
                     },
                     returnType: {
                         name: "IdResponse",
@@ -543,16 +737,17 @@ export class CSharpAst {
                 }
                 if (isAuditBase) {
                     createApi.requiresAuth = true
-                    if (!createApi.request.attributes) createApi.request.attributes = []
-                    // [AutoApply(Behavior.AuditCreate)]
-                    createApi.request.attributes!.push({
-                        name: "AutoApply",
-                        constructorArgs: [{
-                            name: "name",
-                            type: "constant",
-                            value: "Behavior.AuditCreate"
-                        }]
-                    })
+                    if (!createApi.request.attributes?.find(x => x.name === 'AutoApply')) {
+                        // [AutoApply(Behavior.AuditCreate)]
+                        createApi.request.attributes!.push({
+                            name: "AutoApply",
+                            constructorArgs: [{
+                                name: "name",
+                                type: "constant",
+                                value: "Behavior.AuditCreate"
+                            }]
+                        })
+                    }
                 }
                 this.result.operations.push(createApi)
             }
@@ -576,9 +771,10 @@ export class CSharpAst {
                                 type: x.isPrimaryKey 
                                     ? x.type 
                                     : `${this.nullable(x.type)}`,
-                                    attributes:x.attributes?.filter(a => !ignoreAttrs.includes(a.name)),
+                                    attributes:onlyAttrs(x.attributes?.filter(a => !ignoreAttrs.includes(a.name)), this.requestPropAttrs),
                                 })
                         ),
+                        attributes: this.attrsFor("Update", type.attributes),
                     },
                     returnType: {
                         name: "IdResponse",
@@ -596,16 +792,17 @@ export class CSharpAst {
                 }
                 if (isAuditBase) {
                     updateApi.requiresAuth = true
-                    if (!updateApi.request.attributes) updateApi.request.attributes = []
-                    // [AutoApply(Behavior.AuditModify)]
-                    updateApi.request.attributes!.push({
-                        name: "AutoApply",
-                        constructorArgs: [{
-                            name: "name",
-                            type: "constant",
-                            value: "Behavior.AuditModify"
-                        }]
-                    })
+                    if (!updateApi.request.attributes?.find(x => x.name === 'AutoApply')) {
+                        // [AutoApply(Behavior.AuditModify)]
+                        updateApi.request.attributes!.push({
+                            name: "AutoApply",
+                            constructorArgs: [{
+                                name: "name",
+                                type: "constant",
+                                value: "Behavior.AuditModify"
+                            }]
+                        })
+                    }
                 }
                 this.result.operations.push(updateApi)
             }
@@ -623,27 +820,43 @@ export class CSharpAst {
                             namespace: "ServiceStack",
                             genericArgs: [type.name]
                         }],
-                        properties: idsProps,
+                        properties: pk 
+                            ? [
+                                Object.assign({}, pk, { 
+                                    type: `${this.nullable(pk.type)}`,
+                                    attributes:onlyAttrs(pk.attributes, this.requestPropAttrs),
+                                }),
+                                idsProp!
+                            ]
+                            : [],
+                        attributes: this.attrsFor("Delete", type.attributes),
                     },
                     returnsVoid: true,
                     dataModel,
                 }
                 if (isAuditBase) {
                     deleteApi.requiresAuth = true
-                    if (!deleteApi.request.attributes) deleteApi.request.attributes = []
-                    // [AutoApply(Behavior.AuditSoftDelete)]
-                    deleteApi.request.attributes!.push({
-                        name: "AutoApply",
-                        constructorArgs: [{
-                            name: "name",
-                            type: "constant",
-                            value: "Behavior.AuditSoftDelete"
-                        }]
-                    })
+                    if (!deleteApi.request.attributes?.find(x => x.name === 'AutoApply')) {
+                        // [AutoApply(Behavior.AuditSoftDelete)]
+                        deleteApi.request.attributes!.push({
+                            name: "AutoApply",
+                            constructorArgs: [{
+                                name: "name",
+                                type: "constant",
+                                value: "Behavior.AuditSoftDelete"
+                            }]
+                        })
+                    }
                 }
                 this.result.operations.push(deleteApi)
-            }
+            }            
         }
+    }
+
+    filterModelAttributes() {
+        for (const type of this.classes) {
+            type.attributes = this.attrsFor("Model", type.attributes)
+        }        
     }
 
     // Add Icon for BuiltIn UIs and AutoQueryGrid to known type names
@@ -705,7 +918,6 @@ export class CSharpAst {
     }
     
     parseTypes() {
-
         this.ast.classes.forEach(c => {
             const name = toPascalCase(c.name)
             if (this.result.types.find(x => x.name === name && x.namespace === 'MyApp')) return
@@ -727,6 +939,7 @@ export class CSharpAst {
         this.hideReferenceProperties()
         this.replaceUserReferencesWithAuditTables()
         this.createAutoCrudApis()
+        this.filterModelAttributes()
     }
     
     parse(ast:ParseResult) {

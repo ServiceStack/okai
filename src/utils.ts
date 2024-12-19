@@ -120,6 +120,14 @@ export function leftPart(s:string, needle:string) {
         : s.substring(0, pos)
 }
 
+export function rightPart(s:string, needle:string) {
+    if (s == null) return null
+    let pos = s.indexOf(needle)
+    return pos == -1
+        ? s
+        : s.substring(pos + needle.length)
+}
+
 export function splitCase(t: string) {
     return typeof t != 'string' ? t : t.replace(/([A-Z]|[0-9]+)/g, ' $1').replace(/_/g, ' ').trim()
 }

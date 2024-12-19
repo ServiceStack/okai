@@ -36,9 +36,17 @@ export class TsdGenerator {
         }
         const prefix = attr.comment ? '// ' : ''
         return `${prefix}@${attr.name}(${sbArgs.join(',')})`
-}
+    }
 
     toInterface(ast:ParsedInterface) {
+        return this.toType(ast, 'interface')
+    }
+
+    toClass(ast:ParsedInterface) {
+        return this.toType(ast, 'class')
+    }
+
+    toType(ast:ParsedInterface, type:"interface"|"class") {
         const sb:string[] = []
         if (ast.comment) {
             sb.push(ast.comment.split('\n').map(x => `// ${x}`).join('\n'))
@@ -49,7 +57,7 @@ export class TsdGenerator {
             }
         }
         const extend = ast.extends ? ` extends ${ast.extends}` : ''
-        sb.push(`export interface ${ast.name}${extend} {`)
+        sb.push(`export ${type} ${ast.name}${extend} {`)
         for (const prop of ast.properties) {
             if (prop.comment) {
                 sb.push(prop.comment.split('\n').map(x => `  // ${x}`).join('\n'))
@@ -85,7 +93,7 @@ export class TsdGenerator {
         return sb.join('\n')
     }
 
-    generate(ast:ParseResult) {
+    generate(ast:ParseResult, type:"interface"|"class" = 'interface') {
         this.ast = ast
         const sb:string[] = []
 
@@ -95,13 +103,13 @@ export class TsdGenerator {
         }
 
         for (const cls of ast.interfaces ?? []) {
-            sb.push(this.toInterface(cls))
+            sb.push(this.toType(cls, type))
             sb.push('')
         }
 
         for (const cls of ast.classes ?? []) {
             const iface = this.clsToInterface(cls)
-            sb.push(this.toInterface(iface))
+            sb.push(this.toType(iface, type))
             sb.push('')
         }
 
@@ -176,6 +184,6 @@ export class TsdDataModelGenerator extends TsdGenerator
             ast.interfaces = ast.interfaces.filter(x => x.name !== 'User')
         }
 
-        return super.generate(ast)
+        return super.generate(ast, "class")
     }
 }

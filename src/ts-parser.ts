@@ -56,7 +56,8 @@ export class TypeScriptParser {
     private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/g
     private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>[\w<>[\],\s]+)(?<union>\|\s*[\w<>[\],|,\s]+)?\s*;?/
     private static readonly ENUM_MEMBER_PATTERN = /(\w+)\s*(?:=\s*("[^"]*"|'[^']*'|\d+|[^,\n]+))?\s*/
-    private static readonly ANNOTATION_PATTERN = /@\w+\(.*\)/
+    // private static readonly ANNOTATION_PATTERN = /@(\w+\.?\w*)\s*\((.*)\)/
+    private static readonly ANNOTATION_PATTERN = /@([A-Za-z_][A-Za-z0-9_]*\.?[A-Za-z_]?[A-Za-z0-9_]*)\s*\((.*)\)/
 
     private classes: ParsedClass[] = [];
     private interfaces: ParsedInterface[] = [];
@@ -334,7 +335,7 @@ export class TypeScriptParser {
 
 export function parseAnnotation(annotation: string) {
     // Match @name and everything inside ()
-    const regex = /@(\w+)\s*\((.*)\)/
+    const regex = /@(\w+\.?\w*)\s*\((.*)\)/
     const match = annotation.match(regex)
 
     if (!match) return null

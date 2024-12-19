@@ -489,6 +489,7 @@ export interface MetadataAttribute {
     name: string;
     constructorArgs?: MetadataPropertyType[];
     args?: MetadataPropertyType[];
+    namespace?: string;
 }
 export interface RefInfo {
     model: string;
