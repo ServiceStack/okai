@@ -1,5 +1,5 @@
 declare global {
-    class AuditBase {
+    export class AuditBase {
         createdDate: Date
         createdBy: string
         modifiedDate: Date
@@ -14,15 +14,6 @@ declare global {
         min?:string, max?:string, step?:string, minLength?:number, maxLength?:number, accept?:string, capture?:string, multiple?:boolean, 
         allowableValues?:string[], allowableValuesEnum?:TypeOf, options?:string, ignore?:boolean, evalAllowableValues?:string, evalAllowableEntries?:string, }
     export type ScriptValueOptions = { value?: any,  expression?: string, eval?: string,  noCache?: boolean }
-    
-    export interface AuditBase {
-        createdDate: Date
-        createdBy: string
-        modifiedDate: Date
-        modifiedBy: string
-        deletedDate?: Date
-        deletedBy?: string
-    }
     
     // A no-op class decorator factory that allows calling with parentheses
     function noOpClassDecorator() {
