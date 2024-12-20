@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { parseTsdHeader } from '../src/client'
+import { parseTsdHeader } from '../src/utils.js'
 /*prompt:  Create an internal Collaboration tool to Facilitate teamwork and communication among employees
 api:       ~/BlazorDiffusion.ServiceModel/JobListings.cs
 migration: ~/BlazorDiffusion/Migrations/Migration1009.cs
@@ -7,6 +7,7 @@ migration: ~/BlazorDiffusion/Migrations/Migration1009.cs
 describe('tsd tests', () => {
 	it('does parse .d.ts header', () => {
         const header = parseTsdHeader([
+            `/// <reference path="./api.d.ts" />`,
             `/*prompt:  Create an internal Collaboration tool to Facilitate teamwork and communication among employees`,
             'api:       ~/BlazorDiffusion.ServiceModel/JobListings.cs',
             'migration: ~/BlazorDiffusion/Migrations/Migration1009.cs',
@@ -20,6 +21,7 @@ describe('tsd tests', () => {
     })
 	it('does parse .d.ts header with multiple line prompts', () => {
         const header = parseTsdHeader([
+            `/// <reference path="./api.d.ts" />`,
             `/*prompt:  Create an internal Collaboration tool`,
             `to Facilitate teamwork and communication`,
             `among employees`,

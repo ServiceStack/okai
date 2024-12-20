@@ -146,14 +146,14 @@ export function tsdWithPrompt(tsd:string, prompt:string) {
 }
 
 export function tsdWithoutPrompt(tsd:string) {
-    return tsd.trim().startsWith('/*prompt:')
+    return tsd.includes('/*prompt:')
         ? tsd.substring(tsd.indexOf('*/') + 2).trim()
         : tsd
 }
 
 export function parseTsdHeader(tsd:string): TsdHeader | null {
     const header = tsd.includes('/*prompt:')
-        ? leftPart(tsd, '*/')!.replace('/*prompt:','').trim()
+        ? leftPart(rightPart(tsd, '/*prompt:'), '*/')!.trim()
         : null
     if (!header) return null
 
@@ -178,7 +178,7 @@ export function parseTsdHeader(tsd:string): TsdHeader | null {
 export function toTsdHeader(header:TsdHeader): string {
     const sb = [
         `/*prompt:  ${header.prompt}`,
-        `api:       ${header.api}`,        
+        `api:       ${header.api}`,
     ]
     if (header.migration) {
         sb.push(`migration: ${header.migration}`)

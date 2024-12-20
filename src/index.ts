@@ -12,7 +12,7 @@ import { TsdDataModelGenerator } from "./tsd-gen.js"
 import { getFileContent } from "./client.js"
 
 type Command = {
-  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "remove" | "accept"
+  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept"
   prompt?:    string
   models?:    string
   tsdFile?:   string
@@ -27,6 +27,7 @@ type Command = {
   baseUrl:    string
   script:     string
   list?:      string
+  add?:      string
   accept?:    string
   info?:      ProjectInfo
 }
@@ -80,7 +81,7 @@ function parseArgs(...args: string[]) : Command {
             ret.unknown.push(arg)
             break
       }
-    } else if (ret.type === "help" && ["help","info","init","ls","rm","update","accept"].includes(arg)) {
+    } else if (ret.type === "help" && ["help","info","init","ls","add","rm","update","accept"].includes(arg)) {
       if (arg == "help")      ret.type = "help"
       else if (arg == "info") ret.type = "info"
       else if (arg == "init") ret.type = "init"
@@ -99,6 +100,9 @@ function parseArgs(...args: string[]) : Command {
       } else if (arg == "ls") {
         ret.type = "list"
         ret.list = args[++i]
+      } else if (arg == "add") {
+        ret.type = "add"
+        ret.add = args[++i]
       } else if (arg == "accept") {
         ret.type = "accept"
         ret.accept = args[++i]
@@ -233,6 +237,25 @@ Options:
     }
   }
 
+  if (command.type === "add") {
+    if (command.add == "types" || command.add?.startsWith("api")) {
+      const apiFile = path.join(import.meta.dirname, 'api.d.ts')
+      if (!fs.existsSync(apiFile)) {
+        console.log(`Could not find: ${apiFile}`)
+        process.exit(1)
+      }
+
+      const toFile = path.join(info.serviceModelDir, 'api.d.ts')
+      fs.copyFileSync(apiFile, toFile)
+      console.log(`Added: ${toFile}`)
+      process.exit(0)
+    } else {
+      console.log(`Unknown add command: ${command.add}`)
+      console.log(`Usage:  add types`)
+      process.exit(1)
+    }
+  }
+
   function assertTsdPath(tsdFile:string) {
     const tryPaths = [
       path.join(process.cwd(), tsdFile),
@@ -346,9 +369,18 @@ Options:
       } else {
         console.log(`APIs .cs file not found: ${apiPath}`)
       }
+
     }
     fs.unlinkSync(tsdPath)
     console.log(`Removed: ${tsdPath}`)
+
+    const serviceModelDir = path.dirname(tsdPath)
+    const tsds = fs.readdirSync(serviceModelDir).filter(x => x.endsWith('.d.ts'))
+    if (tsds.length == 1 && tsds[0] == 'api.d.ts') {
+      const typesApiPath = path.join(serviceModelDir, 'api.d.ts')
+      fs.unlinkSync(typesApiPath)
+      console.log(`Removed: ${typesApiPath}`)
+    }
 
     process.exit(0)
   }
@@ -660,16 +692,19 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const migrationCls = leftPart(migrationFileName, '.')
   const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
 
-  const sb:string[] = []
-  sb.push(`/*prompt: ${titleBar.content.replaceAll('/*', '').replaceAll('*/', '')}`)
-  sb.push(`api:       ~/${path.join(relativeServiceModelDir,apiFileName)}`)
-  sb.push(`migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`)
-  sb.push(`*/`)
-  sb.push('')
-  sb.push(tsd)
+  const sb:string[] = [
+    `/// <reference path="./api.d.ts" />`,
+    `/*prompt: ${titleBar.content.replaceAll('/*', '').replaceAll('*/', '')}`,
+    `api:       ~/${path.join(relativeServiceModelDir,apiFileName)}`,
+    `migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`,
+    `*/`,
+    '',
+    tsd,
+  ]
   const tsdContent = sb.join('\n')
 
   const tsdFileName = `${groupName}.d.ts`
+  const typesApiPath = path.join(info.slnDir,relativeServiceModelDir,`api.d.ts`)
   const fullTsdPath = path.join(info.slnDir,relativeServiceModelDir,tsdFileName)
   const fullApiPath = path.join(info.slnDir,relativeServiceModelDir,apiFileName)
   const fullMigrationPath = path.join(info.slnDir,relativeMigrationDir,migrationFileName)
@@ -689,6 +724,8 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
     fs.writeFileSync(fullMigrationPath, migrationContent, { encoding: 'utf-8' })
     console.log(`Saved: ${fullMigrationPath}`)
   }
+  const apiFile = path.join(import.meta.dirname, 'api.d.ts')
+  fs.writeFileSync(typesApiPath, fs.readFileSync(apiFile, 'utf-8'))
 
   const script = path.basename(process.argv[1])
   console.log(`\nTo regenerate classes, update '${tsdFileName}' then run:`)
