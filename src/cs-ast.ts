@@ -3,7 +3,7 @@ import type {
     MetadataAttribute, MetadataTypeName, MetadataOperationType,
 } from "./types"
 import { ParsedAnnotation, ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
-import { leftPart, plural, rightPart, toPascalCase } from "./utils.js"
+import { getGroupName, leftPart, plural, rightPart, splitCase, toPascalCase } from "./utils.js"
 import { Icons } from "./icons.js"
 
 const sys = (name:string, genericArgs?:string[]) => ({ name, namespace: "System", genericArgs })
@@ -96,9 +96,9 @@ export class CSharpAst {
         'validateExactLength',
         'validateMinimumLength',
         'validateMaximumLength',
-        'validateLessThanLength',
+        'validateLessThan',
         'validateLessThanOrEqual',
-        'validateGreaterThanLength',
+        'validateGreaterThan',
         'validateGreaterThanOrEqual',
         'validateScalePrecision',
         'validateRegularExpression',
@@ -124,6 +124,11 @@ export class CSharpAst {
         'fieldCss',
         'uploadTo',
     ].map(x => x.toLowerCase())
+
+    get requestPropAttrsWithoutValidators() {
+        return this.requestPropAttrs.filter(x => !x.startsWith('validate'))
+    }
+
     modelPropAttrs = [
         'alias',
         'meta',
@@ -173,6 +178,31 @@ export class CSharpAst {
         'intlDateTime',
         'intlRelativeTime',
     ].map(x => x.toLowerCase())
+
+    // Ignore properties with these attributes on APIs
+    ignoreCreateProps = [
+        'autoIncrement',
+        'references',
+        'compute',
+        'computed',
+    ].map(x => x.toLowerCase())
+    
+    ignoreUpdateProps = [
+        'references',
+        'compute',
+        'computed',
+    ].map(x => x.toLowerCase())
+    
+    // Validators that should be on Create but not optional Update APIs
+    ignoreUpdateValidators = [
+        'validateNull',
+        'validateNotNull',
+        'validateEmpty',
+        'validateNotEmpty',
+    ].map(x => x.toLowerCase())
+
+    ignoreReadValidators = this.requestPropAttrs.filter(x => x.startsWith('validate')).map(x => x.toLowerCase())
+    ignoreDeleteValidators = this.requestPropAttrs.filter(x => x.startsWith('validate')).map(x => x.toLowerCase())
 
     unwrap(type:string) {
         if (type.endsWith("?")) {
@@ -571,12 +601,37 @@ export class CSharpAst {
         }
     }
 
-    attrsFor(dtoType:"Read"|"Create"|"Update"|"Delete"|"Model", attrs?:MetadataAttribute[]) {
+    onlyAttrs(attrs:MetadataAttribute[]|null|undefined, only:string[]) {
+        if (!attrs) return
+        return attrs.filter(x => only.includes(x.name.toLowerCase()))
+    }
+
+    attrsFor(dtoType:"Read"|"Create"|"Update"|"Delete"|"Model", attrType:"Type"|"Prop", attrs?:MetadataAttribute[]) {
         const requestAttrs = this.requestAttrs
         const requestPropAttrs = this.requestPropAttrs
         const modelAttrs = this.modelAttrs
         const modelPropAttrs = this.modelPropAttrs
+
+        const isRequest = ["Read","Create","Update","Delete"].includes(dtoType)
+        const validAttrs = attrType === "Type" 
+            ? isRequest
+                ? requestAttrs
+                : modelAttrs 
+            : isRequest
+                ? requestPropAttrs
+                : modelPropAttrs
+        const ignoreValidators = attrType === "Prop"
+            ? dtoType === "Update"
+                ? this.ignoreUpdateValidators 
+                : dtoType === "Read" 
+                    ? this.ignoreReadValidators 
+                        : dtoType === "Delete" 
+                            ? this.ignoreDeleteValidators
+                            : []
+            : []
+
         function shouldInclude(attr:MetadataAttribute, dtoType:"Read"|"Create"|"Update"|"Delete"|"Model") {
+            if (!validAttrs.includes(attr.name.toLowerCase())) return false
             const ns = attr.namespace
             if (ns) {
                 if (ns == "All") return true
@@ -585,13 +640,23 @@ export class CSharpAst {
                 if (ns == "Update") return dtoType == "Update"
                 if (ns == "Delete") return dtoType == "Delete"
                 if (ns == "Write") return ["Create","Update","Delete"].includes(dtoType)
+                return false
             } else {
-                const isRequest = dtoType != "Model"
                 const nameLower = attr.name.toLowerCase()
                 if (isRequest) {
-                    return requestAttrs.includes(nameLower) || requestPropAttrs.includes(nameLower)
+                    if (attrType === "Type") {
+                        return requestAttrs.includes(nameLower)
+                    } else if (attrType === "Prop") {
+                        if (ignoreValidators.length && ignoreValidators.includes(nameLower)) 
+                            return false
+                        return requestPropAttrs.includes(nameLower)
+                    }
                 } else {
-                    return modelAttrs.includes(nameLower) || modelPropAttrs.includes(nameLower)
+                    if (attrType === "Type") {
+                        return modelAttrs.includes(nameLower)
+                    } else if (attrType === "Prop") {
+                        return modelPropAttrs.includes(nameLower)
+                    }
                 }
             }
             return true
@@ -606,6 +671,9 @@ export class CSharpAst {
     }
 
     createAutoCrudApis() {
+        const groupName = getGroupName(this.result)
+        const friendlyGroupName = splitCase(groupName)
+
         for (const type of this.classes) {
             const hasPk = type.properties?.some(x => x.isPrimaryKey)
             if (!hasPk) continue
@@ -616,6 +684,13 @@ export class CSharpAst {
             const dataModel = { name: type.name, namespace: type.name }
             const isAuditBase = type.inherits?.name === 'AuditBase'
 
+            const existingTag = type.attributes?.find(x => x.name.toLowerCase() === 'tag')
+            const tags = !existingTag ? [friendlyGroupName] : undefined
+            const emptyTag = existingTag?.constructorArgs?.[0]?.value === ''
+            if (emptyTag) {
+                type.attributes = type.attributes!.filter(x => x !== existingTag)
+            }
+
             const inputTagAttrs = [{
                 name: "Input",
                 args: [{ name:"Type", type:"string", value:"tag" }]
@@ -624,11 +699,6 @@ export class CSharpAst {
                 name: "FieldCss",
                 args: [{ name:"Field", type:"string", value:"col-span-12" }]
             }]
-
-            function onlyAttrs(attrs:MetadataAttribute[]|null|undefined, only:string[]) {
-                if (!attrs) return
-                return attrs.filter(x => only.includes(x.name))
-            }
 
             const idsProp = pk 
                 ? { 
@@ -655,13 +725,13 @@ export class CSharpAst {
                         properties: pk 
                             ? [
                                 Object.assign({}, pk, { 
-                                    type: `${this.nullable(pk.type)}`,
-                                    attributes:onlyAttrs(pk.attributes, this.requestPropAttrs),
+                                    type: this.nullable(pk.type),
+                                    attributes:this.attrsFor("Read", "Prop", pk.attributes),
                                 }),
                                 idsProp!
                             ]
                             : [],
-                        attributes: this.attrsFor("Read", type.attributes),
+                        attributes: this.attrsFor("Read", "Type", type.attributes),
                     },
                     returnType: {
                         name: "QueryResponse`1",
@@ -688,7 +758,6 @@ export class CSharpAst {
             let createName = `Create${type.name}`
             let createApi = this.result.operations.find(x => x.request.name === createName) as MetadataOperationType
             if (!createApi) {
-                const ignorePropsWithAttrs = ['AutoIncrement','Reference']
                 createApi = {
                     method: "POST",
                     actions: ["ANY"],
@@ -701,15 +770,15 @@ export class CSharpAst {
                             genericArgs: [type.name]
                         }],
                         properties: type.properties!
-                            .filter(x => !x.attributes?.some(a => ignorePropsWithAttrs.includes(a.name))).map(x => 
+                            .filter(x => !x.attributes?.some(a => this.ignoreCreateProps.includes(a.name.toLowerCase()))).map(x => 
                             Object.assign({}, x, { 
                                 type: x.isPrimaryKey 
                                     ? x.type 
                                     : `${x.type}`,
-                                    attributes:onlyAttrs(x.attributes, this.requestPropAttrs),
+                                    attributes:this.attrsFor("Create", "Prop", x.attributes),
                                 })
                         ),
-                        attributes: this.attrsFor("Create", type.attributes),
+                        attributes: this.attrsFor("Create", "Type", type.attributes),
                     },
                     returnType: {
                         name: "IdResponse",
@@ -720,18 +789,27 @@ export class CSharpAst {
                 for (const prop of createApi.request.properties!) {
                     if (prop.isRequired) {
                         if (!prop.attributes) prop.attributes = []
+                        var hasAnyValidateAttrs = prop.attributes.some(x => x.name.toLowerCase().startsWith('validate'))
 
                         if (prop.type === 'string') {   
-                            prop.attributes.push({
-                                name: "ValidateNotEmpty",
-                            })
+                            if (!hasAnyValidateAttrs) {
+                                prop.attributes.push({
+                                    name: "ValidateNotEmpty",
+                                })
+                            }
                         } else if (this.integerTypes.includes(prop.type)) {
-                            prop.attributes.push({
-                                name: "ValidateGreaterThan",
-                                constructorArgs:[{ name:"value", type:"int", value:"0" }]
-                            })
+                            if (!hasAnyValidateAttrs) {
+                                prop.attributes.push({
+                                    name: "ValidateGreaterThan",
+                                    constructorArgs:[{ name:"value", type:"int", value:"0" }]
+                                })
+                            }
                         } else if (prop.type === 'List`1' && this.commonValueTypes.includes(prop.genericArgs![0])) {
                             prop.attributes.push(...inputTagAttrs)
+                        }
+                        const emptyValidateAttr = prop.attributes.find(x => x.name.toLowerCase() === 'validate')
+                        if (emptyValidateAttr && emptyValidateAttr.constructorArgs?.[0]?.value === '') {
+                            prop.attributes = prop.attributes.filter(x => x !== emptyValidateAttr)
                         }
                     }
                 }
@@ -754,7 +832,6 @@ export class CSharpAst {
             let updateName = `Update${type.name}`
             let updateApi = this.result.operations.find(x => x.request.name === updateName) as MetadataOperationType
             if (!updateApi) {
-                const ignoreAttrs = ['AutoIncrement']
                 updateApi = {
                     method: "PATCH",
                     actions: ["ANY"],
@@ -766,15 +843,15 @@ export class CSharpAst {
                             namespace: "ServiceStack",
                             genericArgs: [type.name]
                         }],
-                        properties: type.properties?.filter(x => !x.attributes?.some(x => x.name === 'References')).map(x => 
+                        properties: type.properties?.filter(x => !x.attributes?.some(x => this.ignoreUpdateProps.includes(x.name.toLowerCase()))).map(x => 
                             Object.assign({}, x, { 
                                 type: x.isPrimaryKey 
                                     ? x.type 
                                     : `${this.nullable(x.type)}`,
-                                    attributes:onlyAttrs(x.attributes?.filter(a => !ignoreAttrs.includes(a.name)), this.requestPropAttrs),
+                                    attributes:this.attrsFor("Update", "Prop", x.attributes),
                                 })
                         ),
-                        attributes: this.attrsFor("Update", type.attributes),
+                        attributes: this.attrsFor("Update", "Type", type.attributes),
                     },
                     returnType: {
                         name: "IdResponse",
@@ -823,13 +900,13 @@ export class CSharpAst {
                         properties: pk 
                             ? [
                                 Object.assign({}, pk, { 
-                                    type: `${this.nullable(pk.type)}`,
-                                    attributes:onlyAttrs(pk.attributes, this.requestPropAttrs),
+                                    type: this.nullable(pk.type),
+                                    attributes:this.attrsFor("Delete", "Prop", pk.attributes),
                                 }),
                                 idsProp!
                             ]
                             : [],
-                        attributes: this.attrsFor("Delete", type.attributes),
+                        attributes: this.attrsFor("Delete", "Type", type.attributes),
                     },
                     returnsVoid: true,
                     dataModel,
@@ -855,7 +932,14 @@ export class CSharpAst {
 
     filterModelAttributes() {
         for (const type of this.classes) {
-            type.attributes = this.attrsFor("Model", type.attributes)
+            if (type.attributes?.length) {
+                type.attributes = this.attrsFor("Model", "Type", type.attributes)
+            }
+            type.properties?.forEach(p => {
+                if (p.attributes?.length) {
+                    p.attributes = this.attrsFor("Model", "Prop", p.attributes)
+                }
+            })
         }        
     }
 
@@ -865,7 +949,14 @@ export class CSharpAst {
             const icon = Icons[type.name]
             if (icon) {
                 if (!type.attributes) type.attributes = []
-                if (type.attributes.some(x => x.name === 'Icon')) continue
+                const existingIcon = type.attributes.find(x => x.name === 'Icon')
+                if (existingIcon) {
+                    // remove empty icon
+                    if (existingIcon.constructorArgs?.[0]?.value === '') {
+                        type.attributes = type.attributes.filter(x => x !== existingIcon)
+                    }
+                    return
+                }
                 type.attributes.push({ 
                     name: "Icon", 
                     args: [{ name: "Svg", type: "string", value:icon }]

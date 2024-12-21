@@ -98,9 +98,9 @@ declare global {
     export function validateExactLength(length:number) : ClassFieldDecoratorDef
     export function validateMinimumLength(min:number) : ClassFieldDecoratorDef
     export function validateMaximumLength(max:number) : ClassFieldDecoratorDef
-    export function validateLessThanLength(value:number) : ClassFieldDecoratorDef
+    export function validateLessThan(value:number) : ClassFieldDecoratorDef
     export function validateLessThanOrEqual(value:number) : ClassFieldDecoratorDef
-    export function validateGreaterThanLength(value:number) : ClassFieldDecoratorDef
+    export function validateGreaterThan(value:number) : ClassFieldDecoratorDef
     export function validateGreaterThanOrEqual(value:number) : ClassFieldDecoratorDef
     export function validateScalePrecision(scale:number, precision:number) : ClassFieldDecoratorDef
     export function validateRegularExpression(pattern:string) : ClassFieldDecoratorDef
@@ -264,9 +264,9 @@ declare global {
         validateExactLength:typeof validateExactLength
         validateMinimumLength:typeof validateMinimumLength
         validateMaximumLength:typeof validateMaximumLength
-        validateLessThanLength:typeof validateLessThanLength
+        validateLessThan:typeof validateLessThan
         validateLessThanOrEqual:typeof validateLessThanOrEqual
-        validateGreaterThanLength:typeof validateGreaterThanLength
+        validateGreaterThan:typeof validateGreaterThan
         validateGreaterThanOrEqual:typeof validateGreaterThanOrEqual
         validateScalePrecision:typeof validateScalePrecision
         validateRegularExpression:typeof validateRegularExpression

@@ -82,13 +82,6 @@ export class CSharpApiGenerator extends CSharpGenerator {
 
     generate(ast:MetadataTypes) {
         const groupName = getGroupName(ast)
-        const friendlyGroupName = splitCase(groupName)
-
-        ast.operations.forEach(op => {
-            if (op.request.attributes?.find(x => x.name === 'Tag')) return
-            if (!op.tags) op.tags = []
-            op.tags.push(friendlyGroupName)
-        })
         
         this.namespaces = Array.from(ast.namespaces)
         this.apis = ast.operations.map(x => this.toApiClass(x))
