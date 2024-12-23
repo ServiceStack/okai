@@ -128,6 +128,21 @@ export function rightPart(s:string, needle:string) {
         : s.substring(pos + needle.length)
 }
 
+export function lastLeftPart(s:string, needle:string) {
+    if (s == null) return null
+    let pos = s.lastIndexOf(needle)
+    return pos == -1
+        ? s
+        : s.substring(0, pos)
+}
+export function lastRightPart(s:string, needle:string) {
+    if (s == null) return null
+    let pos = s.lastIndexOf(needle)
+    return pos == -1
+        ? s
+        : s.substring(pos + needle.length)
+}
+
 export function splitCase(t: string) {
     return typeof t != 'string' ? t : t.replace(/([A-Z]|[0-9]+)/g, ' $1').replace(/_/g, ' ').trim()
 }
@@ -153,7 +168,7 @@ export function tsdWithoutPrompt(tsd:string) {
 
 export function parseTsdHeader(tsd:string): TsdHeader | null {
     const header = tsd.includes('/*prompt:')
-        ? leftPart(rightPart(tsd, '/*prompt:'), '*/')!.trim()
+        ? leftPart(rightPart(tsd, '/*prompt:') ?? '', '*/')!.trim()
         : null
     if (!header) return null
 

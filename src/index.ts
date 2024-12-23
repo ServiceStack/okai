@@ -1,9 +1,9 @@
 import type { Gist, GistFile, ProjectInfo, TsdHeader } from "./types"
 import fs from "fs"
-import path, { parse } from "path"
+import path from "path"
 import blessed from 'blessed'
 import { projectInfo } from './info.js'
-import { parseTsdHeader, toTsdHeader, getGroupName, leftPart, replaceMyApp, trimStart, tsdWithoutPrompt } from "./utils.js"
+import { parseTsdHeader, toTsdHeader, getGroupName, leftPart, replaceMyApp, trimStart, tsdWithoutPrompt, toPascalCase, plural } from "./utils.js"
 import { toAst } from "./ts-ast.js"
 import { toMetadataTypes } from "./cs-ast.js"
 import { CSharpApiGenerator } from "./cs-apis.js"
@@ -18,7 +18,6 @@ type Command = {
   tsdFile?:   string
   license?:   string
   watch?:     boolean
-  init?:      boolean
   verbose?:   boolean
   ignoreSsl?: boolean
   debug?:     boolean
@@ -29,6 +28,7 @@ type Command = {
   list?:      string
   add?:      string
   accept?:    string
+  init?:      string
   info?:      ProjectInfo
 }
 
@@ -84,7 +84,12 @@ function parseArgs(...args: string[]) : Command {
     } else if (ret.type === "help" && ["help","info","init","ls","add","rm","update","accept"].includes(arg)) {
       if (arg == "help")      ret.type = "help"
       else if (arg == "info") ret.type = "info"
-      else if (arg == "init") ret.type = "init"
+      else if (arg == "init") {
+        ret.type = "init"
+        if (args[i+1]) {
+          ret.init = args[++i]
+        }
+      }
       else if (arg == "update") {
         ret.type = "update"
         ret.tsdFile = args[++i]
@@ -157,7 +162,7 @@ export async function cli(cmdArgs:string[]) {
     return
   }
 
-  if (command.type === "init") {
+  if (command.type === "init" && !command.init) {
     let info = projectInfo(process.cwd()) ?? {
       projectName: "<MyApp>",      
       slnDir: "/path/to/.sln/folder",
@@ -167,6 +172,7 @@ export async function cli(cmdArgs:string[]) {
       serviceInterfaceDir: "/path/to/MyApp.ServiceInterfaces",
     }
     fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
+    console.log(`Added: okai.json`)
     process.exit(0)
     return
   }
@@ -187,6 +193,7 @@ ${bin} <models>.d.ts        Regenerate C# *.cs files for Data Models defined in 
 ${bin} rm <models>.d.ts     Remove <models>.d.ts and its generated *.cs files
 ${bin} ls models            Display list of available premium LLM models
 ${bin} init                 Initialize okai.json with project info to override default paths
+${bin} init <model>         Create an empty <model>.d.ts file for the specified model
 ${bin} info                 Display current project info
 
 Options:
@@ -206,7 +213,7 @@ Options:
       console.log(`$ ${script} init`)
       process.exit(1)
     }
-}
+  }
 
   if (command.type === "info") {
     try {
@@ -235,6 +242,42 @@ Options:
       console.log(models)
       process.exit(0)
     }
+  }
+
+  if (command.type == "init" && command.info) {
+    const toApiFile = path.join(info.serviceModelDir, 'api.d.ts')
+    fs.copyFileSync(path.join(import.meta.dirname, 'api.d.ts'), toApiFile)
+    console.log(`Added: ${toApiFile}`)
+
+    let model = toPascalCase(leftPart(command.init, '.'))
+    let groupName = plural(model)
+    if (model == groupName) {
+      if (model.endsWith('s')) {
+        model = model.substring(0, model.length - 1)
+      }
+    }
+    
+    command.tsdFile = groupName + '.d.ts'
+    command.type = "update"
+    let tsd = `
+      export class ${model} {
+        id:number
+        name:string
+      }
+    `
+    const tsdAst = toAst(tsd)
+    if (tsdAst.references.length == 0) {
+      tsdAst.references.push({ path: './api.d.ts' })
+    }
+    const tsdGenerator = new TsdDataModelGenerator()
+    tsd = tsdGenerator.generate(tsdAst)
+    const tsdContent = createTsdFile(info, {
+      prompt:`New ${model}`, 
+      apiFileName:`${groupName}.cs`, 
+      tsd,
+    })
+    fs.writeFileSync(path.join(info.serviceModelDir, command.tsdFile), tsdContent, { encoding: 'utf-8' })
+    command.type = "update" // let update handle the rest
   }
 
   if (command.type === "add") {
@@ -295,8 +338,6 @@ Options:
       tsdContent = tsdGenerator.generate(tsdAst)
   
       const csAst = toMetadataTypes(tsdAst)
-      // const groupName = path.basename(command.tsdFile, '.d.ts')
-      // console.log('groupName', groupName)
     
       const genApis = new CSharpApiGenerator()
       const csApiFiles = genApis.generate(csAst)
@@ -316,7 +357,7 @@ Options:
       }
   
       console.log(`${logPrefix}${tsdPath}`)
-      const newTsdContent = toTsdHeader(header) + '\n\n' + tsdContent
+      const newTsdContent = toTsdHeader(header) + (tsdContent.startsWith('///') ? '' : '\n') + tsdContent
       fs.writeFileSync(tsdPath, newTsdContent, { encoding: 'utf-8' })
       return newTsdContent
     }
@@ -331,7 +372,7 @@ Options:
           if (command.verbose) console.log(`No change detected`)
           return
         }
-        console.log(`\n${++i}. ${leftPart(new Date().toTimeString(), ' ')} regenerating files:`)
+        console.log(`\n${++i}. regenerated files at ${leftPart(new Date().toTimeString(), ' ')}:`)
         lastTsdContent = regenerate(header,tsdContent)
       })
       return
@@ -692,19 +733,17 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const migrationCls = leftPart(migrationFileName, '.')
   const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
 
-  const sb:string[] = [
-    `/// <reference path="./api.d.ts" />`,
-    `/*prompt: ${titleBar.content.replaceAll('/*', '').replaceAll('*/', '')}`,
-    `api:       ~/${path.join(relativeServiceModelDir,apiFileName)}`,
-    `migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`,
-    `*/`,
-    '',
-    tsd,
-  ]
-  const tsdContent = sb.join('\n')
+  const apiTypesPath = path.join(info.slnDir,relativeServiceModelDir,`api.d.ts`)
+  const apiFile = path.join(import.meta.dirname, 'api.d.ts')
+  fs.writeFileSync(apiTypesPath, fs.readFileSync(apiFile, 'utf-8'))
+
+  const tsdContent = createTsdFile(info, {
+      prompt: titleBar.content.replaceAll('/*', '').replaceAll('*/', ''), 
+      apiFileName, 
+      tsd
+    })
 
   const tsdFileName = `${groupName}.d.ts`
-  const typesApiPath = path.join(info.slnDir,relativeServiceModelDir,`api.d.ts`)
   const fullTsdPath = path.join(info.slnDir,relativeServiceModelDir,tsdFileName)
   const fullApiPath = path.join(info.slnDir,relativeServiceModelDir,apiFileName)
   const fullMigrationPath = path.join(info.slnDir,relativeMigrationDir,migrationFileName)
@@ -724,8 +763,6 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
     fs.writeFileSync(fullMigrationPath, migrationContent, { encoding: 'utf-8' })
     console.log(`Saved: ${fullMigrationPath}`)
   }
-  const apiFile = path.join(import.meta.dirname, 'api.d.ts')
-  fs.writeFileSync(typesApiPath, fs.readFileSync(apiFile, 'utf-8'))
 
   const script = path.basename(process.argv[1])
   console.log(`\nTo regenerate classes, update '${tsdFileName}' then run:`)
@@ -802,6 +839,26 @@ function exit(screen:blessed.Widgets.Screen, info:ProjectInfo, gist:Gist) {
   process.exit(0)
 }
 
+function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string, tsd:string}) {
+  const migrationPath = resolveMigrationFile(path.join(info.migrationsDir, `Migration1000.cs`))
+  const migrationFileName = path.basename(migrationPath)
+  const relativeServiceModelDir = trimStart(info.serviceModelDir.substring(info.slnDir.length), '~/')
+  const relativeMigrationDir = info.migrationsDir && fs.existsSync(info.migrationsDir)
+    ? trimStart(info.migrationsDir.substring(info.slnDir.length), '~/')
+    : null
+
+  const sb:string[] = [
+    `/*prompt:  ${opt.prompt}`,
+    `api:       ~/${path.join(relativeServiceModelDir,opt.apiFileName)}`,
+  ]
+  if (relativeMigrationDir) {
+    sb.push(`migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`)
+  }
+  sb.push('*/')
+  return sb.join('\n') + (opt.tsd.startsWith('///') ? '' : '\n\n') + opt.tsd
+}
+
+
 function applyCSharpGist(ctx:Awaited<ReturnType<typeof createGistPreview>>, 
   info:ProjectInfo, gist:Gist, 
   { accept = false, acceptAll = false, discard = false }) {
@@ -838,3 +895,4 @@ function applyCSharpGist(ctx:Awaited<ReturnType<typeof createGistPreview>>,
     exit(screen, info, gist)
   }
 }
+

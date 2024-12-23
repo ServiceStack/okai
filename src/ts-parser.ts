@@ -1,3 +1,5 @@
+import { lastLeftPart, leftPart, rightPart } from "./utils.js"
+
 export interface ParsedProperty {
     modifier?: string
     name: string
@@ -41,13 +43,17 @@ export interface ParsedAnnotation {
     name: string
     constructorArgs?: any[]
     args?: Record<string, any>
-    comment?: boolean
+}
+
+export interface ParsedReference {
+    path: string;
 }
 
 export interface ParseResult {
     classes: ParsedClass[]
     interfaces: ParsedInterface[]
     enums: ParsedEnum[]
+    references: ParsedReference[]
 }
 
 export class TypeScriptParser {
@@ -56,14 +62,18 @@ export class TypeScriptParser {
     private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/g
     private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>[\w<>[\],\s]+)(?<union>\|\s*[\w<>[\],|,\s]+)?\s*;?/
     private static readonly ENUM_MEMBER_PATTERN = /(\w+)\s*(?:=\s*("[^"]*"|'[^']*'|\d+|[^,\n]+))?\s*/
-    // private static readonly ANNOTATION_PATTERN = /@(\w+\.?\w*)\s*\((.*)\)/
-    private static readonly ANNOTATION_PATTERN = /@([A-Za-z_][A-Za-z0-9_]*\.?[A-Za-z_]?[A-Za-z0-9_]*)\s*\((.*)\)/
+    public static readonly ANNOTATION_PATTERN = /^\s*@([A-Za-z_][A-Za-z0-9_]*\.?[A-Za-z_]?[A-Za-z0-9_]*)/
+    private static readonly REFERENCE_PATTERN = /\/\/\/\s*<reference\s+path="([^"]+)"\s*\/>/g;
 
     private classes: ParsedClass[] = [];
     private interfaces: ParsedInterface[] = [];
     private enums: ParsedEnum[] = [];
+    private references: ParsedReference[] = [];
 
     private getLineComment(line: string): string | undefined {
+        if (line.match(TypeScriptParser.REFERENCE_PATTERN)) {
+            return undefined;
+        }
         // Check for single line comment at end of line
         const singleLineMatch = line.match(/.*?\/\/\s*(.+)$/);
         if (singleLineMatch) {
@@ -97,33 +107,18 @@ export class TypeScriptParser {
         while (previousLine && (!previousLine.match(TypeScriptParser.PROPERTY_PATTERN) || previousLine.match(ANNOTATION))) {
             const annotation = previousLine.match(ANNOTATION) ? parseAnnotation(previousLine) : undefined
             if (annotation) {
-                if (previousLine.trimStart().startsWith('//')) {
-                    annotation.comment = true
-                }
                 annotations.push(annotation)
             } else {
                 const comment = this.getLineComment(previousLine)
                 if (comment) {
-                    const annotation = comment.match(ANNOTATION) ? parseAnnotation(comment) : undefined
-                    if (annotation) {
-                        annotation.comment = true
-                        annotations.push(annotation)
-                    } else {
-                        commments.unshift(comment)
-                    }
+                    commments.unshift(comment)
                 }
             }
             previousLine = this.getPreviousLine(body, body.indexOf(previousLine))
         }
         const lineComment = this.getLineComment(line)
         if (lineComment) {
-            const annotation = lineComment.match(ANNOTATION) ? parseAnnotation(lineComment) : undefined
-            if (annotation) {
-                annotation.comment = true
-                annotations.push(annotation)
-            } else {
-                commments.push(lineComment)
-            }
+            commments.push(lineComment)
         } else if (line.match(ANNOTATION)) {
             const annotation = parseAnnotation(line)
             if (annotation) {
@@ -254,6 +249,13 @@ export class TypeScriptParser {
         }
     }
 
+    private parseReferences(content: string): void {
+        let match: RegExpExecArray | null;
+        while ((match = TypeScriptParser.REFERENCE_PATTERN.exec(content))) {
+            this.references.push({ path: match[1] });
+        }
+    }
+
     private parseEnumMembers(enumBody: string): ParsedEnumMember[] {
         const members: ParsedEnumMember[] = []
         const lines = enumBody.split('\n')
@@ -321,11 +323,13 @@ export class TypeScriptParser {
         this.interfaces = []
         this.enums = []
 
+        this.parseReferences(sourceCode);
         this.parseInterfaces(sourceCode)
         this.parseClasses(sourceCode)
         this.parseEnums(sourceCode)
 
         return {
+            references: this.references,
             classes: this.classes,
             interfaces: this.interfaces,
             enums: this.enums
@@ -334,13 +338,19 @@ export class TypeScriptParser {
 }
 
 export function parseAnnotation(annotation: string) {
-    // Match @name and everything inside ()
-    const regex = /@(\w+\.?\w*)\s*\((.*)\)/
+    const regex = TypeScriptParser.ANNOTATION_PATTERN
+    if (annotation.includes('//')) {
+        annotation = leftPart(annotation, '//')!
+    }
     const match = annotation.match(regex)
 
     if (!match) return null
 
-    const [, name, paramsStr] = match
+    const [, name] = match
+    // Extract parameters if they exist
+    const paramsStr = annotation.includes('(') && annotation.includes(')') 
+        ? lastLeftPart(rightPart(annotation, '('), ')')
+        : ''
 
     try {
         // Handle multiple arguments by splitting on commas outside quotes/braces

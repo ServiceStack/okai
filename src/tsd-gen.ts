@@ -5,7 +5,7 @@ export class TsdGenerator {
 
     interfaces: string[] = []
     enums: string[] = []
-    ast: ParseResult = { classes:[], interfaces:[], enums: [] }
+    ast: ParseResult = { references:[], classes:[], interfaces:[], enums: [] }
 
     clsToInterface(ast:ParsedClass) {
         const to = {
@@ -34,8 +34,7 @@ export class TsdGenerator {
                 sbArgs.push(`${name}=${this.attrValue(typeof value, value)}`)
             }
         }
-        const prefix = attr.comment ? '// ' : ''
-        return `${prefix}@${attr.name}(${sbArgs.join(',')})`
+        return `@${attr.name}(${sbArgs.join(',')})`
     }
 
     toInterface(ast:ParsedInterface) {
@@ -96,6 +95,12 @@ export class TsdGenerator {
     generate(ast:ParseResult, type:"interface"|"class" = 'interface') {
         this.ast = ast
         const sb:string[] = []
+        if (ast.references?.length) {
+            for (const ref of ast.references) {
+                sb.push(`/// <reference path="${ref.path}" />`)
+            }
+            sb.push('')
+        }
 
         for (const cls of ast.enums ?? []) {
             sb.push(this.toEnum(cls))

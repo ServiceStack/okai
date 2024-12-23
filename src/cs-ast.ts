@@ -204,27 +204,17 @@ export class CSharpAst {
     ignoreReadValidators = this.requestPropAttrs.filter(x => x.startsWith('validate')).map(x => x.toLowerCase())
     ignoreDeleteValidators = this.requestPropAttrs.filter(x => x.startsWith('validate')).map(x => x.toLowerCase())
 
-    unwrap(type:string) {
-        if (type.endsWith("?")) {
-            return type.substring(0, type.length-1)
-        }
-        return type
-    }
-    nullable(type:string) {
-        return type.endsWith('?') ? type : `${type}?`
-    }
-
     isEnum(type:string) {
-        type = this.unwrap(type)
+        type = unwrap(type)
         return this.ast.enums.some(x => x.name === type) || this.result.types.find(x => x.name === type && x.isEnum)
     }
 
     isValueType(type:string) {
-        type = this.unwrap(type)
+        type = unwrap(type)
         return this.valueTypes.includes(type) || this.isEnum(type)
     }
 
-    ast:ParseResult = { classes:[], interfaces:[], enums:[] }
+    ast:ParseResult = { references:[], classes:[], interfaces:[], enums:[] }
     result:MetadataTypes = {
         config: {} as MetadataTypesConfig,
         namespaces: [],
@@ -302,7 +292,7 @@ export class CSharpAst {
                 const type = this.csharpType(p.type, p.name)
                 const prop:MetadataPropertyType = {
                     name:this.toCsName(p.name),
-                    type: p.optional ? this.nullable(type.name) : type.name!,
+                    type: p.optional ? nullable(type.name) : type.name!,
                 }
                 if (type.namespace) {
                     prop.namespace = type.namespace
@@ -401,206 +391,7 @@ export class CSharpAst {
     get typesWithReferences() {
         return this.result.types.filter(x => !x.isEnum && !x.isInterface && x.properties?.some(x => x.attributes?.some(x => x.name === 'Reference')))
     }
-
-    replaceReferences(references:string[]) {
-        // The most important types are the ones with the most references
-        const refCount = (t:MetadataType) => t.properties?.filter(
-            p => this.result.types.find(x => x.name === p.type && p.namespace === 'MyApp')).length || 0
-        const importantTypes = this.result.types.sort((x,y) => refCount(y) - refCount(x))
-
-        for (const type of this.result.types) {
-            if (references.includes(type.name)) {
-                const importantType = importantTypes.find(x => x.properties?.some(p => p.type === type.name))
-                if (importantType) {
-                    const newName = `${importantType.name}${type.name}`
-                    this.replaceReference(type.name, newName)
-                }
-            }
-        }
-    }
-
-    replaceReference(fromType:string, toType:string) {
-        for (const type of this.result.types) {
-            if (type.name === fromType) {
-                type.name = toType
-            }
-            if (type.properties) {
-                for (const prop of type.properties!) {
-                    if (prop.type === fromType) {
-                        prop.type = toType
-                    }
-                    if (prop.name === fromType) {
-                        prop.name = toType
-                    }
-                    if (prop.name === `${fromType}Id`) {
-                        prop.name = `${toType}Id`
-                    }
-                }
-            }
-        }
-    }
-
-    replaceIds() {
-        for (const type of this.classes) {
-            const idProp = type.properties?.find(x => x.name === `${type.name}Id`)
-            if (idProp) {
-                type.properties?.forEach(x => delete x.isPrimaryKey)
-                idProp.name = 'Id'
-                idProp.isPrimaryKey = true
-            }
-            // If using a shortened id for the type e.g. (PerformanceReview, ReviewId)
-            const firstProp = type.properties?.[0]
-            if (firstProp?.name.endsWith('Id') && type.name.includes(firstProp.name.substring(0, firstProp.name.length-2))) {
-                firstProp.name = 'Id'
-                firstProp.isPrimaryKey = true
-            }
-        }
-        const anyIntPks = this.classes.some(x => x.properties?.some(p => p.isPrimaryKey && this.integerTypes.includes(p.type)))
-        if (!anyIntPks) {
-            for (const type of this.classes) {
-                const idProp = type.properties?.find(x => x.isPrimaryKey)
-                if (idProp) {
-                    idProp.type = 'int'
-                }
-            }
-        }
-    }
-
-    convertReferenceTypes() {
-        for (const type of this.classes) {
-            for (let i = 0; i < type.properties!.length; i++) {
-                const p = type.properties![i]
-                const refType = this.result.types.find(x => x.name === p.type && x.namespace === 'MyApp' && !x.isEnum)
-                if (refType) {
-                    const fkId = `${p.name}Id`
-                    let idProp = refType.properties?.find(x => x.name === 'Id')
-                    if (!idProp) {
-                        idProp = { name:'Id', type:'int', isPrimaryKey:true, isValueType:true, namespace:'System' }
-                        refType.properties?.unshift(idProp)
-                    }
-                    // Only add if FK Id prop does not already exist
-                    if (!type.properties!.find(x => x.name === fkId)) {
-                        const fkProp:MetadataPropertyType = {
-                            name:fkId,
-                            type:idProp.type,
-                            namespace:idProp.namespace,
-                            attributes:[{
-                                name: "References",
-                                constructorArgs: [{
-                                    name: "type",
-                                    type: "Type",
-                                    value: `typeof(${p.type})`
-                                }],
-                                args: []
-                            }]
-                        }
-                        type.properties!.splice(i, 0, fkProp)
-                    }
-
-                    if (!p.attributes) p.attributes = []
-                    p.attributes.push({ name: "Reference" })
-
-                    i++ // Skip over added fk prop
-                }
-            }
-        }
-    }
-
-    convertArrayReferenceTypes() {
-        for (const type of this.classes) {
-            for (const prop of type.properties!) {
-                if (prop.type.endsWith('[]')) {
-                    const elType = prop.type.substring(0, prop.type.length-2)
-                    const refType = this.result.types.find(x => x.name === elType && x.namespace === 'MyApp' && !x.isEnum)
-                    if (refType && refType.properties?.find(x => x.name === 'Id' || x.isPrimaryKey)) {
-                        prop.namespace = 'System.Collections.Generic'
-                        prop.genericArgs = [elType]
-                        prop.type = 'List`1'
-                        if (!prop.attributes) prop.attributes = []
-                        prop.attributes.push({ name: "Reference" })
-
-                        let fkProp = refType.properties!.find(x => x.name === `${type.name}Id`)
-                        if (!fkProp) {
-                            fkProp = {
-                                name: `${type.name}Id`,
-                                type: 'int',
-                                isValueType: true,
-                                namespace: 'System',
-                                attributes: [{
-                                    name: "References",
-                                    constructorArgs: [{
-                                        name: "type",
-                                        type: "Type",
-                                        value: `typeof(${type.name})`
-                                    }]
-                                }]
-                            }
-
-                            // Insert fk prop after last `*Id` prop
-                            const lastIdPropIndex = refType.properties!.findLastIndex(x => x.name.endsWith('Id'))
-                            if (lastIdPropIndex >= 0) {
-                                refType.properties!.splice(lastIdPropIndex + 1, 0, fkProp)
-                            } else {
-                                refType.properties!.push(fkProp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    convertArraysToLists() {
-        for (const type of this.classes) {
-            for (const prop of type.properties!) {
-                const optional = prop.type.endsWith('?')
-                let propType = this.unwrap(prop.type)
-                if (propType.endsWith('[]')) {
-                    const elType = propType.substring(0, propType.length-2)
-                    prop.namespace = 'System.Collections.Generic'
-                    prop.genericArgs = [elType]
-                    prop.type = 'List`1' + (optional ? '?' : '')
-                }
-            }
-        }
-    }
-
-    addMissingReferencesToForeignKeyProps() {
-        for (const type of this.typesWithPrimaryKeys) {
-            for (const prop of type.properties!) {
-                if (prop.name.endsWith('Id') && !prop.isPrimaryKey && !prop.attributes?.some(x => x.name.startsWith('Reference'))) {
-                    const refTypeName = prop.name.substring(0, prop.name.length-2)
-                    const refType = this.result.types.find(x => x.name === refTypeName && x.namespace === 'MyApp' && !x.isEnum)
-                    if (refType) {
-                        if (!prop.attributes) prop.attributes = []
-                        prop.attributes.push({
-                            name: "References",
-                            constructorArgs: [{
-                                name: "type",
-                                type: "Type",
-                                value: `typeof(${refTypeName})`
-                            }]
-                        })
-                    }
-                }
-            }
-        }
-    }
-
-    addAutoIncrementAttrs() {
-        for (const type of this.classes) {
-            for (const prop of type.properties!) {
-                if (prop.isPrimaryKey) {
-                    if (prop.type === 'int' || prop.type === 'long' || prop.type === 'Int32' || prop.type === 'Int64') {
-                        if (!prop.attributes) prop.attributes = []
-                        const attr:MetadataAttribute = { name: "AutoIncrement" }
-                        prop.attributes.push(attr)
-                    }
-                }
-            }
-        }
-    }
-
+    
     onlyAttrs(attrs:MetadataAttribute[]|null|undefined, only:string[]) {
         if (!attrs) return
         return attrs.filter(x => only.includes(x.name.toLowerCase()))
@@ -725,7 +516,7 @@ export class CSharpAst {
                         properties: pk 
                             ? [
                                 Object.assign({}, pk, { 
-                                    type: this.nullable(pk.type),
+                                    type: nullable(pk.type),
                                     attributes:this.attrsFor("Read", "Prop", pk.attributes),
                                 }),
                                 idsProp!
@@ -847,7 +638,7 @@ export class CSharpAst {
                             Object.assign({}, x, { 
                                 type: x.isPrimaryKey 
                                     ? x.type 
-                                    : `${this.nullable(x.type)}`,
+                                    : `${nullable(x.type)}`,
                                     attributes:this.attrsFor("Update", "Prop", x.attributes),
                                 })
                         ),
@@ -900,7 +691,7 @@ export class CSharpAst {
                         properties: pk 
                             ? [
                                 Object.assign({}, pk, { 
-                                    type: this.nullable(pk.type),
+                                    type: nullable(pk.type),
                                     attributes:this.attrsFor("Delete", "Prop", pk.attributes),
                                 }),
                                 idsProp!
@@ -928,6 +719,8 @@ export class CSharpAst {
                 this.result.operations.push(deleteApi)
             }            
         }
+        this.filterModelAttributes()
+        return this.result
     }
 
     filterModelAttributes() {
@@ -942,71 +735,6 @@ export class CSharpAst {
             })
         }        
     }
-
-    // Add Icon for BuiltIn UIs and AutoQueryGrid to known type names
-    addIconsToKnownTypes() {
-        for (const type of this.typesWithPrimaryKeys) {
-            const icon = Icons[type.name]
-            if (icon) {
-                if (!type.attributes) type.attributes = []
-                const existingIcon = type.attributes.find(x => x.name === 'Icon')
-                if (existingIcon) {
-                    // remove empty icon
-                    if (existingIcon.constructorArgs?.[0]?.value === '') {
-                        type.attributes = type.attributes.filter(x => x !== existingIcon)
-                    }
-                    return
-                }
-                type.attributes.push({ 
-                    name: "Icon", 
-                    args: [{ name: "Svg", type: "string", value:icon }]
-                })
-            }
-        }    
-    }
-
-    // Hide Reference Properties from AutoQueryGrid Grid View
-    hideReferenceProperties() {
-        for (const type of this.typesWithReferences) {
-            for (const prop of type.properties!.filter(x => x.attributes?.some(x => x.name === 'Reference'))) {
-                if (!prop.attributes) prop.attributes = []
-                //[Format(FormatMethods.Hidden)]
-                prop.attributes.push({ 
-                    name: "Format",
-                    constructorArgs: [{ name: "method", type: "constant", value: "FormatMethods.Hidden" }]
-                })
-            }
-        }
-    }
-
-    // Replace User Tables and FKs with AuditBase tables and 
-    replaceUserReferencesWithAuditTables() {
-        for (const type of this.typesWithPrimaryKeys) {
-
-            const removeProps:string[] = []
-            for (const prop of type.properties!) {
-                if (prop.name === 'UserId') {
-                    removeProps.push(prop.name)
-                }
-                if (prop.attributes?.some(a => 
-                    a.name === 'Reference' && a.constructorArgs?.some(x => x.value === 'typeof(User)'))) {
-                    removeProps.push(prop.name)
-                }
-                if (prop.type === 'User') {
-                    removeProps.push(prop.name)
-                }
-                if (prop.genericArgs && prop.genericArgs.includes('User')) {
-                    removeProps.push(prop.name)
-                }
-            }
-            if (removeProps.length) {
-                type.properties = type.properties!.filter(x => !removeProps.includes(x.name))
-                type.inherits = { name: "AuditBase", namespace: "ServiceStack" }
-            }
-        }
-        // Remove User Table
-        this.result.types = this.result.types.filter(x => x.name !== 'User')
-    }
     
     parseTypes() {
         this.ast.classes.forEach(c => {
@@ -1019,18 +747,6 @@ export class CSharpAst {
             if (this.result.types.find(x => x.name === name && x.isEnum)) return
             this.addMetadataEnum(e)
         })
-        this.replaceReferences(['Service'])
-        this.replaceIds()
-        this.convertReferenceTypes()
-        this.convertArrayReferenceTypes()
-        this.convertArraysToLists()
-        this.addMissingReferencesToForeignKeyProps()
-        this.addAutoIncrementAttrs()
-        this.addIconsToKnownTypes()
-        this.hideReferenceProperties()
-        this.replaceUserReferencesWithAuditTables()
-        this.createAutoCrudApis()
-        this.filterModelAttributes()
     }
     
     parse(ast:ParseResult) {
@@ -1038,6 +754,7 @@ export class CSharpAst {
         const classes = ast.classes.concat(ast.interfaces)
         const enums = ast.enums
         this.ast = {
+            references:[],
             classes:classes,
             interfaces:[],
             enums:enums ?? [],
@@ -1061,7 +778,318 @@ export class CSharpAst {
     }
 }
 
-export function toMetadataTypes(ast:ParseResult) {
-    const generator = new CSharpAst()
-    return generator.parse(ast)
+export type Transform = (gen:CSharpAst) => void
+
+export const Transforms = {
+    Default: [
+        convertReferenceTypes,
+        convertArrayReferenceTypes,
+        convertArraysToLists,
+        addMissingReferencesToForeignKeyProps,
+        addAutoIncrementAttrs,
+        addIconsToKnownTypes,
+        hideReferenceProperties,
+    ],
+    AI: [
+        replaceServiceReferences,
+        replaceIds,
+        convertReferenceTypes,
+        convertArrayReferenceTypes,
+        convertArraysToLists,
+        addMissingReferencesToForeignKeyProps,
+        addAutoIncrementAttrs,
+        addIconsToKnownTypes,
+        hideReferenceProperties,
+        replaceUserReferencesWithAuditTables,
+    ]
+}
+
+export function toMetadataTypes(ast:ParseResult, transforms?:Transform[]) {
+    const gen = new CSharpAst()
+    gen.parse(ast)
+    if (!transforms) transforms = Transforms.Default
+    for (const transform of transforms) {
+        transform(gen)
+    }
+    return gen.createAutoCrudApis()
+}
+
+export function unwrap(type:string) {
+    if (type.endsWith("?")) {
+        return type.substring(0, type.length-1)
+    }
+    return type
+}
+export function nullable(type:string) {
+    return type.endsWith('?') ? type : `${type}?`
+}
+
+export function replaceReference(gen:CSharpAst, fromType:string, toType:string) {
+    for (const type of gen.result.types) {
+        if (type.name === fromType) {
+            type.name = toType
+        }
+        if (type.properties) {
+            for (const prop of type.properties!) {
+                if (prop.type === fromType) {
+                    prop.type = toType
+                }
+                if (prop.name === fromType) {
+                    prop.name = toType
+                }
+                if (prop.name === `${fromType}Id`) {
+                    prop.name = `${toType}Id`
+                }
+            }
+        }
+    }
+}
+
+export function replaceServiceReferences(gen:CSharpAst) {
+    replaceReferences(gen, ['Service'])
+}
+
+export function replaceReferences(gen:CSharpAst, references:string[]) {
+    // The most important types are the ones with the most references
+    const refCount = (t:MetadataType) => t.properties?.filter(
+        p => gen.result.types.find(x => x.name === p.type && p.namespace === 'MyApp')).length || 0
+    const importantTypes = gen.result.types.sort((x,y) => refCount(y) - refCount(x))
+
+    for (const type of gen.result.types) {
+        if (references.includes(type.name)) {
+            const importantType = importantTypes.find(x => x.properties?.some(p => p.type === type.name))
+            if (importantType) {
+                const newName = `${importantType.name}${type.name}`
+                replaceReference(gen, type.name, newName)
+            }
+        }
+    }
+}
+
+export function replaceIds(gen:CSharpAst) {
+    for (const type of gen.classes) {
+        const idProp = type.properties?.find(x => x.name === `${type.name}Id`)
+        if (idProp) {
+            type.properties?.forEach(x => delete x.isPrimaryKey)
+            idProp.name = 'Id'
+            idProp.isPrimaryKey = true
+        }
+        // If using a shortened id for the type e.g. (PerformanceReview, ReviewId)
+        const firstProp = type.properties?.[0]
+        if (firstProp?.name.endsWith('Id') && type.name.includes(firstProp.name.substring(0, firstProp.name.length-2))) {
+            firstProp.name = 'Id'
+            firstProp.isPrimaryKey = true
+        }
+    }
+    // Replace all string Ids with int Ids
+    const anyIntPks = gen.classes.some(x => x.properties?.some(p => p.isPrimaryKey && gen.integerTypes.includes(p.type)))
+    if (!anyIntPks) {
+        for (const type of gen.classes) {
+            const idProp = type.properties?.find(x => x.isPrimaryKey)
+            if (idProp) {
+                idProp.type = 'int'
+            }
+        }
+    }
+}
+
+export function convertReferenceTypes(gen:CSharpAst) {
+    for (const type of gen.classes) {
+        for (let i = 0; i < type.properties!.length; i++) {
+            const p = type.properties![i]
+            const refType = gen.result.types.find(x => x.name === p.type && x.namespace === 'MyApp' && !x.isEnum)
+            if (refType) {
+                const fkId = `${p.name}Id`
+                let idProp = refType.properties?.find(x => x.name === 'Id')
+                if (!idProp) {
+                    idProp = { name:'Id', type:'int', isPrimaryKey:true, isValueType:true, namespace:'System' }
+                    refType.properties?.unshift(idProp)
+                }
+                // Only add if FK Id prop does not already exist
+                if (!type.properties!.find(x => x.name === fkId)) {
+                    const fkProp:MetadataPropertyType = {
+                        name:fkId,
+                        type:idProp.type,
+                        namespace:idProp.namespace,
+                        attributes:[{
+                            name: "References",
+                            constructorArgs: [{
+                                name: "type",
+                                type: "Type",
+                                value: `typeof(${p.type})`
+                            }],
+                            args: []
+                        }]
+                    }
+                    type.properties!.splice(i, 0, fkProp)
+                }
+
+                if (!p.attributes) p.attributes = []
+                p.attributes.push({ name: "Reference" })
+
+                i++ // Skip over added fk prop
+            }
+        }
+    }
+}
+
+export function convertArrayReferenceTypes(gen:CSharpAst) {
+    for (const type of gen.classes) {
+        for (const prop of type.properties!) {
+            if (prop.type.endsWith('[]')) {
+                const elType = prop.type.substring(0, prop.type.length-2)
+                const refType = gen.result.types.find(x => x.name === elType && x.namespace === 'MyApp' && !x.isEnum)
+                if (refType && refType.properties?.find(x => x.name === 'Id' || x.isPrimaryKey)) {
+                    prop.namespace = 'System.Collections.Generic'
+                    prop.genericArgs = [elType]
+                    prop.type = 'List`1'
+                    if (!prop.attributes) prop.attributes = []
+                    prop.attributes.push({ name: "Reference" })
+
+                    let fkProp = refType.properties!.find(x => x.name === `${type.name}Id`)
+                    if (!fkProp) {
+                        fkProp = {
+                            name: `${type.name}Id`,
+                            type: 'int',
+                            isValueType: true,
+                            namespace: 'System',
+                            attributes: [{
+                                name: "References",
+                                constructorArgs: [{
+                                    name: "type",
+                                    type: "Type",
+                                    value: `typeof(${type.name})`
+                                }]
+                            }]
+                        }
+
+                        // Insert fk prop after last `*Id` prop
+                        const lastIdPropIndex = refType.properties!.findLastIndex(x => x.name.endsWith('Id'))
+                        if (lastIdPropIndex >= 0) {
+                            refType.properties!.splice(lastIdPropIndex + 1, 0, fkProp)
+                        } else {
+                            refType.properties!.push(fkProp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export function convertArraysToLists(gen:CSharpAst) {
+    for (const type of gen.classes) {
+        for (const prop of type.properties!) {
+            const optional = prop.type.endsWith('?')
+            let propType = unwrap(prop.type)
+            if (propType.endsWith('[]')) {
+                const elType = propType.substring(0, propType.length-2)
+                prop.namespace = 'System.Collections.Generic'
+                prop.genericArgs = [elType]
+                prop.type = 'List`1' + (optional ? '?' : '')
+            }
+        }
+    }
+}
+
+export function addMissingReferencesToForeignKeyProps(gen:CSharpAst) {
+    for (const type of gen.typesWithPrimaryKeys) {
+        for (const prop of type.properties!) {
+            if (prop.name.endsWith('Id') && !prop.isPrimaryKey && !prop.attributes?.some(x => x.name.startsWith('Reference'))) {
+                const refTypeName = prop.name.substring(0, prop.name.length-2)
+                const refType = gen.result.types.find(x => x.name === refTypeName && x.namespace === 'MyApp' && !x.isEnum)
+                if (refType) {
+                    if (!prop.attributes) prop.attributes = []
+                    prop.attributes.push({
+                        name: "References",
+                        constructorArgs: [{
+                            name: "type",
+                            type: "Type",
+                            value: `typeof(${refTypeName})`
+                        }]
+                    })
+                }
+            }
+        }
+    }
+}
+
+export function addAutoIncrementAttrs(gen:CSharpAst) {
+    for (const type of gen.classes) {
+        for (const prop of type.properties!) {
+            const hasPkAttr = prop.attributes?.some(x => ['primarykey','autoincrement','autoid'].includes(x.name.toLowerCase()))
+            if (prop.isPrimaryKey && !hasPkAttr) {
+                if (prop.type === 'int' || prop.type === 'long' || prop.type === 'Int32' || prop.type === 'Int64') {
+                    if (!prop.attributes) prop.attributes = []
+                    const attr:MetadataAttribute = { name: "AutoIncrement" }
+                    prop.attributes.push(attr)
+                }
+            }
+        }
+    }
+}
+
+// Add Icon for BuiltIn UIs and AutoQueryGrid to known type names
+export function addIconsToKnownTypes(gen:CSharpAst) {
+    for (const type of gen.typesWithPrimaryKeys) {
+        const icon = Icons[type.name]
+        if (icon) {
+            if (!type.attributes) type.attributes = []
+            const existingIcon = type.attributes.find(x => x.name === 'Icon')
+            if (existingIcon) {
+                // remove empty icon
+                if (existingIcon.constructorArgs?.[0]?.value === '') {
+                    type.attributes = type.attributes.filter(x => x !== existingIcon)
+                }
+                return
+            }
+            type.attributes.push({ 
+                name: "Icon", 
+                args: [{ name: "Svg", type: "string", value:icon }]
+            })
+        }
+    }    
+}
+
+// Hide Reference Properties from AutoQueryGrid Grid View
+export function hideReferenceProperties(gen:CSharpAst) {
+    for (const type of gen.typesWithReferences) {
+        for (const prop of type.properties!.filter(x => x.attributes?.some(x => x.name === 'Reference'))) {
+            if (!prop.attributes) prop.attributes = []
+            //[Format(FormatMethods.Hidden)]
+            prop.attributes.push({ 
+                name: "Format",
+                constructorArgs: [{ name: "method", type: "constant", value: "FormatMethods.Hidden" }]
+            })
+        }
+    }
+}
+
+// Replace User Tables and FKs with AuditBase tables and 
+export function replaceUserReferencesWithAuditTables(gen:CSharpAst) {
+    for (const type of gen.typesWithPrimaryKeys) {
+
+        const removeProps:string[] = []
+        for (const prop of type.properties!) {
+            if (prop.name === 'UserId') {
+                removeProps.push(prop.name)
+            }
+            if (prop.attributes?.some(a => 
+                a.name === 'Reference' && a.constructorArgs?.some(x => x.value === 'typeof(User)'))) {
+                removeProps.push(prop.name)
+            }
+            if (prop.type === 'User') {
+                removeProps.push(prop.name)
+            }
+            if (prop.genericArgs && prop.genericArgs.includes('User')) {
+                removeProps.push(prop.name)
+            }
+        }
+        if (removeProps.length) {
+            type.properties = type.properties!.filter(x => !removeProps.includes(x.name))
+            type.inherits = { name: "AuditBase", namespace: "ServiceStack" }
+        }
+    }
+    // Remove User Table
+    gen.result.types = gen.result.types.filter(x => x.name !== 'User')
 }

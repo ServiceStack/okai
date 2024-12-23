@@ -52,7 +52,7 @@ export function projectInfo(cwd: string) : ProjectInfo {
         ? path.join(hostDir, "Migrations")
         : null
 
-    const info = {
+    const info:ProjectInfo = {
         projectName,
         slnDir,
         hostDir,
@@ -60,7 +60,52 @@ export function projectInfo(cwd: string) : ProjectInfo {
         serviceModelDir,
         serviceInterfaceDir,
     }
+
+    for (const file of walk(serviceInterfaceDir, [], {
+        include: (path) => path.endsWith(".cs"),
+        excludeDirs: ["obj", "bin"]
+    })) {
+        const content = fs.readFileSync(file).toString()
+        const userInfo = parseTypeName(content)
+        if (userInfo) {
+            info.userType = userInfo.userType
+            info.userIdType = userInfo.userIdType ?? 'string'
+            break
+        }
+    }
+    
     return config
         ? Object.assign({}, info, config)
         : info
+}
+
+
+function parseTypeName(cs:string) {
+    const typePattern = /class\s+(\w+)\s*:\s*IdentityUser(?:<(.+)>)?/
+    const match = cs.match(typePattern)
+    if (!match) return null
+    
+    return {
+        userType: match[1],           // Type name
+        userIdType: match[2] || null // Generic arguments (content between < >)
+    }
+}
+
+function walk(dir: string, fileList: string[] = [], opt?: { include:(path:string) => boolean, excludeDirs:string[] }): string[] {
+    const files = fs.readdirSync(dir)
+    for (const file of files) {
+        const filePath = path.join(dir, file)
+        const stat = fs.statSync(filePath)
+        
+        if (stat.isDirectory()) {
+            if (!opt?.excludeDirs || !opt.excludeDirs.includes(file)) {
+                walk(filePath, fileList, opt)
+            }
+        } else {
+            if (!opt?.include || opt?.include(filePath)) {
+                fileList.push(filePath)
+            }
+        }
+    }
+    return fileList
 }
