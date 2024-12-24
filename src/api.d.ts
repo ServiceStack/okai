@@ -141,7 +141,7 @@ declare global {
     export function ignoreOnUpdate() : ClassFieldDecoratorDef
     export function ignoreOnInsert() : ClassFieldDecoratorDef
     export function ignoreDataMember() : ClassFieldDecoratorDef
-    export function reference() : ClassFieldDecoratorDef
+    export function reference(opt?:{ selfId?:string, refId?:string, refLabel?:string }) : ClassFieldDecoratorDef
     export function referenceField(model:TypeOf, id?:string, field?:string) : ClassFieldDecoratorDef
     export function references(type:TypeOf) : ClassFieldDecoratorDef
     export function required() : ClassFieldDecoratorDef
