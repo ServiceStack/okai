@@ -302,6 +302,7 @@ export class CSharpAst {
                 }
                 if (prop.name === 'Id') {
                     prop.isPrimaryKey = true
+                    prop.isRequired = true
                 }
                 const valueType = this.isValueType(prop.type)
                 if (valueType) {
@@ -790,18 +791,6 @@ export const Transforms = {
         addIconsToKnownTypes,
         hideReferenceProperties,
     ],
-    AI: [
-        replaceServiceReferences,
-        replaceIds,
-        convertReferenceTypes,
-        convertArrayReferenceTypes,
-        convertArraysToLists,
-        addMissingReferencesToForeignKeyProps,
-        addAutoIncrementAttrs,
-        addIconsToKnownTypes,
-        hideReferenceProperties,
-        replaceUserReferencesWithAuditTables,
-    ]
 }
 
 export function toMetadataTypes(ast:ParseResult, transforms?:Transform[]) {
@@ -902,7 +891,7 @@ export function convertReferenceTypes(gen:CSharpAst) {
                 const fkId = `${p.name}Id`
                 let idProp = refType.properties?.find(x => x.name === 'Id')
                 if (!idProp) {
-                    idProp = { name:'Id', type:'int', isPrimaryKey:true, isValueType:true, namespace:'System' }
+                    idProp = { name:'Id', type:'int', isPrimaryKey:true, isRequired:true, isValueType:true, namespace:'System' }
                     refType.properties?.unshift(idProp)
                 }
                 // Only add if FK Id prop does not already exist

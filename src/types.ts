@@ -16,6 +16,8 @@ export type ProjectInfo = {
     migrationsDir?: string
     serviceModelDir?: string
     serviceInterfaceDir?: string
+    userType?: string
+    userIdType?: string
 }
 export type TsdHeader = {
     prompt: string

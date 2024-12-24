@@ -127,3 +127,9 @@ export class CSharpApiGenerator extends CSharpGenerator {
         return { [`MyApp.ServiceModel/${fileName}`]: cs }
     }
 }
+
+export function toCSharpApis(csAst:MetadataTypes) {
+    const csFiles = new CSharpApiGenerator().generate(csAst)
+    const cs = csFiles[Object.keys(csFiles)[0]]
+    return cs
+}

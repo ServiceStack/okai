@@ -111,3 +111,9 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
         }
     }
 }
+
+export function toCSharpMigration(csAst:MetadataTypes) {
+    const csFiles = new CSharpMigrationGenerator().generate(csAst)
+    const cs = csFiles[Object.keys(csFiles)[0]]
+    return cs
+}
