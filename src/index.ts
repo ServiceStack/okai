@@ -3,13 +3,12 @@ import fs from "fs"
 import path from "path"
 import blessed from 'blessed'
 import { projectInfo } from './info.js'
-import { parseTsdHeader, toTsdHeader, getGroupName, leftPart, replaceMyApp, trimStart, tsdWithoutPrompt, toPascalCase, plural } from "./utils.js"
-import { toAst } from "./ts-ast.js"
-import { toMetadataTypes } from "./cs-ast.js"
+import { parseTsdHeader, toTsdHeader, leftPart, replaceMyApp, trimStart, toPascalCase, plural } from "./utils.js"
+import { generateCsAstFromTsd, toAst, astForProject } from "./ts-ast.js"
 import { CSharpApiGenerator } from "./cs-apis.js"
 import { CSharpMigrationGenerator } from "./cs-migrations.js"
-import { TsdDataModelGenerator } from "./tsd-gen.js"
 import { getFileContent } from "./client.js"
+import { toTsd } from "./tsd-gen.js"
 
 type Command = {
   type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept"
@@ -269,8 +268,7 @@ Options:
     if (tsdAst.references.length == 0) {
       tsdAst.references.push({ path: './api.d.ts' })
     }
-    const tsdGenerator = new TsdDataModelGenerator()
-    tsd = tsdGenerator.generate(tsdAst)
+    tsd = toTsd(tsdAst)
     const tsdContent = createTsdFile(info, {
       prompt:`New ${model}`, 
       apiFileName:`${groupName}.cs`, 
@@ -333,14 +331,12 @@ Options:
     if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
 
     function regenerate(header:TsdHeader, tsdContent:string, logPrefix = '') {
-      const tsdAst = toAst(tsdContent)
-      const tsdGenerator = new TsdDataModelGenerator()
-      tsdContent = tsdGenerator.generate(tsdAst)
   
-      const csAst = toMetadataTypes(tsdAst)
+      const result = generateCsAstFromTsd(tsdContent)
+      tsdContent = result.tsd
     
       const genApis = new CSharpApiGenerator()
-      const csApiFiles = genApis.generate(csAst)
+      const csApiFiles = genApis.generate(result.csAst)
       const apiContent = replaceMyApp(csApiFiles[Object.keys(csApiFiles)[0]], info.projectName)
       const apiPath = resolveApiFile(header.api)
       console.log(`${logPrefix}${apiPath}`)
@@ -349,7 +345,7 @@ Options:
       if (header?.migration) {
         const migrationCls = leftPart(path.basename(header.migration), '.')
         const getMigrations = new CSharpMigrationGenerator()
-        const csMigrationFiles = getMigrations.generate(csAst)
+        const csMigrationFiles = getMigrations.generate(result.csAst)
         const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
         const migrationPath = resolveApiFile(header.migration)
         console.log(`${logPrefix}${migrationPath}`)
@@ -710,22 +706,19 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   } 
 
   const origTsd = file.content
-  const tsdAst = toAst(origTsd)
-	const generator = new TsdDataModelGenerator()
-	const tsd = generator.generate(tsdAst)
-  const csAst = toMetadataTypes(tsdAst)
-  const groupName = getGroupName(csAst)
+  const tsdAst = astForProject(toAst(origTsd), info)
+  const res = generateCsAstFromTsd(toTsd(tsdAst))
 
   const genApis = new CSharpApiGenerator()
-  const csApiFiles = genApis.generate(csAst)
+  const csApiFiles = genApis.generate(res.csAst)
 
   const getMigrations = new CSharpMigrationGenerator()
-  const csMigrationFiles = getMigrations.generate(csAst)
+  const csMigrationFiles = getMigrations.generate(res.csAst)
 
   const relativeServiceModelDir = trimStart(info.serviceModelDir.substring(info.slnDir.length), '~/')
   const relativeMigrationDir = trimStart(info.migrationsDir.substring(info.slnDir.length), '~/')
 
-  const apiFileName = `${groupName}.cs`
+  const apiFileName = `${res.groupName}.cs`
   const apiContent = replaceMyApp(csApiFiles[Object.keys(csApiFiles)[0]], info.projectName)
 
   const migrationPath = resolveMigrationFile(path.join(info.migrationsDir, `Migration1000.cs`))
@@ -740,10 +733,10 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const tsdContent = createTsdFile(info, {
       prompt: titleBar.content.replaceAll('/*', '').replaceAll('*/', ''), 
       apiFileName, 
-      tsd
+      tsd: res.tsd,
     })
 
-  const tsdFileName = `${groupName}.d.ts`
+  const tsdFileName = `${res.groupName}.d.ts`
   const fullTsdPath = path.join(info.slnDir,relativeServiceModelDir,tsdFileName)
   const fullApiPath = path.join(info.slnDir,relativeServiceModelDir,apiFileName)
   const fullMigrationPath = path.join(info.slnDir,relativeMigrationDir,migrationFileName)

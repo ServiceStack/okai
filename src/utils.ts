@@ -147,6 +147,16 @@ export function splitCase(t: string) {
     return typeof t != 'string' ? t : t.replace(/([A-Z]|[0-9]+)/g, ' $1').replace(/_/g, ' ').trim()
 }
 
+export function pick(o:any, keys:string[]) {
+    const to = {}
+    Object.keys(o).forEach(k => {
+        if (keys.indexOf(k) >= 0) {
+            to[k] = o[k]
+        }
+    })
+    return to
+}
+
 export function refCount(t:MetadataType) {
     return t.properties?.filter(
         x => x.attributes?.some(x => x.name === 'References')).length || 0

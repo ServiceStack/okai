@@ -18,6 +18,7 @@ export type ProjectInfo = {
     serviceInterfaceDir?: string
     userType?: string
     userIdType?: string
+    userLabel?: string
 }
 export type TsdHeader = {
     prompt: string

@@ -66,21 +66,33 @@ export function projectInfo(cwd: string) : ProjectInfo {
         excludeDirs: ["obj", "bin"]
     })) {
         const content = fs.readFileSync(file).toString()
-        const userInfo = parseTypeName(content)
+        const userInfo = parseUserType(content)
         if (userInfo) {
             info.userType = userInfo.userType
             info.userIdType = userInfo.userIdType ?? 'string'
             break
         }
     }
-    
+    for (const file of walk(serviceModelDir, [], {
+        include: (path) => path.endsWith(".cs"),
+        excludeDirs: ["obj", "bin"]
+    })) {
+        const content = fs.readFileSync(file).toString()
+        const dtoInfo = parseUserDtoType(content)
+        if (dtoInfo?.userType) {
+            info.userType = dtoInfo.userType
+            if (dtoInfo.userIdType) info.userIdType = dtoInfo.userIdType
+            if (dtoInfo.userLabel) info.userLabel = dtoInfo.userLabel
+            break
+        }
+    }
+
     return config
         ? Object.assign({}, info, config)
         : info
 }
 
-
-function parseTypeName(cs:string) {
+export function parseUserType(cs:string) {
     const typePattern = /class\s+(\w+)\s*:\s*IdentityUser(?:<(.+)>)?/
     const match = cs.match(typePattern)
     if (!match) return null
@@ -88,6 +100,30 @@ function parseTypeName(cs:string) {
     return {
         userType: match[1],           // Type name
         userIdType: match[2] || null // Generic arguments (content between < >)
+    }
+}
+
+export function parseUserDtoType(cs:string) {
+    const userAliasPos = cs.indexOf('[Alias("AspNetUsers")]')
+    if (userAliasPos === -1) return null
+
+    const typeMatch = cs.substring(userAliasPos).match(/class\s+(\w+)\s*/)
+    if (!typeMatch) return null
+
+    const idMatch = cs.substring(userAliasPos).match(/\s+(\w+\??)\s+Id\s+/i)
+
+    const nameMatch = Array.from(cs.substring(userAliasPos).matchAll(/\s+(\w+Name)\s+/ig))
+        .find(x => x[1].toLowerCase() !== 'username')?.[1]
+    const userLabel = cs.includes('DisplayName')
+        ? 'DisplayName'
+        : nameMatch
+            ? nameMatch
+            : undefined
+
+    return {
+        userType: typeMatch[1], // DTO Type name
+        userIdType: idMatch ? idMatch[1] : null,
+        userLabel,
     }
 }
 
