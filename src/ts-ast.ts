@@ -39,7 +39,7 @@ export function astForProject(tsAst:ParseResult, info:ProjectInfo) {
     return tsAst
 }
 
-// Update User TypeScript AST with user modifications
+// Convert User TypeScript into CS AST and Updated TSD
 export function generateCsAstFromTsd(userTs:string) {
     const userTsAst = toAst(userTs) // user modified tsd
     const tsd = toTsd(userTsAst)

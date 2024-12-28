@@ -1,6 +1,6 @@
-import { ParsedClass, ParsedInterface, ParsedProperty, ParseResult, TypeScriptParser } from "./ts-parser"
-import { ProjectInfo } from "./types"
-import { pick, toCamelCase, toPascalCase } from "./utils"
+import type { ProjectInfo } from "./types.js"
+import { ParsedClass, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
+import { pick, toCamelCase, toPascalCase } from "./utils.js"
 
 // Tranforms that are only applied once on AI TypeScript AST
 
