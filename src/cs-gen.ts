@@ -1,3 +1,4 @@
+import { unwrap } from "./cs-ast"
 import type { MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute, MetadataPropertyType } from "./types"
 import { leftPart } from "./utils.js"
 
@@ -29,7 +30,7 @@ export class CSharpGenerator {
         }
         const optional = name.endsWith('?')
         return genericArgs?.length
-            ? `${leftPart(name,'`')}<${genericArgs.join(',')}>` + (optional ? '?' : '')
+            ? `${unwrap(leftPart(name,'`'))}<${genericArgs.join(',')}>` + (optional ? '?' : '')
             : name
     }
 
@@ -40,7 +41,7 @@ export class CSharpGenerator {
                 this.addNamespace(arg.namespace)
                 if (body) body += ','
                 const value = arg.type.toLowerCase() === 'string'
-                    ? `"${arg.value}"`
+                    ? this.toQuotedString(arg.value)
                     : arg.value
                 body += value
             }            
@@ -50,7 +51,7 @@ export class CSharpGenerator {
                 this.addNamespace(arg.namespace)
                 if (body) body += ','
                 const value = arg.type.toLowerCase() === 'string'
-                    ? `"${arg.value}"`
+                    ? this.toQuotedString(arg.value)
                     : arg.value
                 body += `${arg.name}=${value}`
             }
@@ -58,8 +59,8 @@ export class CSharpGenerator {
         return `[${attr.name}${body ? `(${body})` : ''}]`
     }
 
-    toClass(cls:MetadataType, opt?:{hide:string[]}) {
-        const showDesc = !opt || !opt.hide?.includes('description')
+    toClass(cls:MetadataType, opt?:{hideAttrs:string[], ignoreProp?:(prop:MetadataPropertyType)=>boolean}) {
+        const showDesc = !opt || !opt.hideAttrs?.includes('description')
         const sb:string[] = []
         let clsDef = `public class ${cls.name}`
         if (cls.inherits) {
@@ -75,13 +76,14 @@ export class CSharpGenerator {
             sb.push(`/// </summary>`)
         }
         for (const attr of cls.attributes ?? []) {
-            if (opt?.hide?.includes(attr.name.toLowerCase())) continue
+            if (opt?.hideAttrs?.includes(attr.name.toLowerCase())) continue
             const def = this.toAttribtue(attr)
             sb.push(`${def}`)
         }
         sb.push(clsDef)
         sb.push('{')
         for (const prop of cls.properties ?? []) {
+            if (opt?.ignoreProp?.(prop)) continue
             this.addNamespace(prop.namespace)
             if (showDesc && prop.description) {
                 sb.push(`    /// <summary>`)
@@ -99,11 +101,15 @@ export class CSharpGenerator {
         return sb.join('\n')
     }
 
-    toEnum(enumType:MetadataType, opt?:{hide:string[]}) {
-        const showDesc = !opt || !opt.hide?.includes('description')
+    toQuotedString(s?:string, defaultValue:string = '""') {
+        return s ? `"${s.replaceAll('\n','\\n').replaceAll('"','\\"')}"` : defaultValue
+    }
+
+    toEnum(enumType:MetadataType, opt?:{hideAttrs:string[]}) {
+        const showDesc = !opt || !opt.hideAttrs?.includes('description')
         const sb:string[] = []
         if (showDesc && enumType.description) {
-            sb.push(`[Description("${enumType.description}")]`)
+            sb.push(`[Description(${this.toQuotedString(enumType.description)})]`)
         }
         sb.push(`public enum ${enumType.name}`)
         sb.push('{')
@@ -118,11 +124,11 @@ export class CSharpGenerator {
 
                 let desc = enumType.enumDescriptions?.[i]
                 if (desc) {
-                    sb.push(`    [Description("${desc}")]`)
+                    sb.push(`    [Description(${this.toQuotedString(desc)})]`)
                 }
 
                 if (memberValue && memberValue !== value && memberValue !== name) {
-                    sb.push(`    [EnumMember(Value = "${memberValue}")]`)
+                    sb.push(`    [EnumMember(Value = ${this.toQuotedString(memberValue)})]`)
                 }
 
                 sb.push(value

@@ -22,6 +22,25 @@ export class CSharpAst {
         "undefined":sys("string"),
         "bigint":sys("long"),
         "any":sysObj,
+        "ArrayBuffer":sys("byte[]"),
+        "SharedArrayBuffer":sys("byte[]"),
+        "Int8Array":sys("sbyte[]"),
+        "UInt8Array":sys("byte[]"),
+        "Uint8ClampedArray":sys("byte[]"),
+        "Int16Array":sys("short[]"),
+        "UInt16Array":sys("ushort[]"),
+        "Int32Array":sys("int[]"),
+        "UInt32Array":sys("uint[]"),
+        "Float16Array":sys("float[]"),
+        "Float32Array":sys("float[]"),
+        "Float64Array":sys("double[]"),
+        "BigInt64Array":sys("long[]"),
+        "BigUInt64Array":sys("long[]"),
+        "Array": { name:"List", genericArgs:[], namespace:"System.Collections.Generic" },
+        "Map": { name:"Dictionary", genericArgs:[], namespace:"System.Collections.Generic" },
+        "WeakMap": { name:"Dictionary", genericArgs:[], namespace:"System.Collections.Generic" },
+        "Set": { name:"HashSet", genericArgs:[], namespace:"System.Collections.Generic" },
+        "WeakSet": { name:"HashSet", genericArgs:[], namespace:"System.Collections.Generic" },
     }
     decimalTypeProps = [
         "price","cost","amount","total","salary","balance","rate","discount","tax","fee"
@@ -231,6 +250,13 @@ export class CSharpAst {
             const elType = this.csharpType(type.substring(0, type.length-2), propName)
             return Object.assign({}, elType, { name:elType.name + '[]' })
         }
+        if (type.endsWith('>')) {
+            const start = type.indexOf('<')
+            const genericArgs = type.substring(start+1, type.length-1).split(',').map(x => this.csharpType(x.trim()).name)
+            const baseType = this.csharpType(type.substring(0, start), propName)
+            const ret = Object.assign({}, baseType, { genericArgs })
+            return ret
+        }
         if (propName) {
             if (type === "number") {
                 if (this.decimalTypeProps.some(x => propName.toLowerCase().includes(x))) {
@@ -296,6 +322,9 @@ export class CSharpAst {
                 }
                 if (type.namespace) {
                     prop.namespace = type.namespace
+                }
+                if (type.genericArgs) {
+                    prop.genericArgs = type.genericArgs
                 }
                 if (p.comment) {
                     prop.description = p.comment

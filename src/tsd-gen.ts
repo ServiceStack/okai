@@ -11,18 +11,19 @@ export class TsdGenerator {
     }
 
     toAttr(attr:ParsedAnnotation) {
-        const sbArgs = []
+        const sbCtorArgs = []
         if (attr?.constructorArgs?.length) {
             for (const arg of attr.constructorArgs) {
-                sbArgs.push(this.attrValue(typeof arg, arg))
+                sbCtorArgs.push(this.attrValue(typeof arg, arg))
             }
         }
+        const sbArgs = []
         if (attr.args) {
             for (const [name,value] of Object.entries(attr.args)) {
-                sbArgs.push(`${name}=${this.attrValue(typeof value, value)}`)
+                sbArgs.push(`${name}:${this.attrValue(typeof value, value)}`)
             }
         }
-        return `@${attr.name}(${sbArgs.join(',')})`
+        return `@${attr.name}(${sbCtorArgs.join(',')}${sbCtorArgs.length && sbArgs.length ? ',' : ''}${sbArgs.length ? `{${sbArgs.join(',')}}` : ''})`
     }
 
     toInterface(ast:ParsedInterface) {

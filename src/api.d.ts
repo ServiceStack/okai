@@ -8,6 +8,17 @@ declare global {
         deletedBy?: string
     }
 
+    // Assume User DTO exists
+    export class User {
+        id: string
+        userName: string
+        email: string
+        firstName: string
+        lastName: string
+        displayName: string
+        profileUrl: string
+    }
+
     export type TypeOf = `typeof(${string})`
     export type InputAttrOptions = { type?:string, value?:string, placeholder?:string, help?:string, label?:string, title?:string, size?:string, 
         pattern?:string, readOnly?:boolean, required?:boolean, disabled?:boolean, autocomplete?:string, autofocus?:string, 

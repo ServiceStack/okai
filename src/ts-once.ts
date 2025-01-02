@@ -1,5 +1,5 @@
 import type { ProjectInfo } from "./types.js"
-import { ParsedClass, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
+    import { ParsedClass, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
 import { pick, toCamelCase, toPascalCase } from "./utils.js"
 
 // Tranforms that are only applied once on AI TypeScript AST
@@ -222,9 +222,15 @@ export function replaceReference(gen:ParseResult, fromType:string, toType:string
 
 export function replaceIds(gen:ParseResult) {
     for (const type of gen.classes) {
-        const idProp = type.properties?.find(x => x.name.toLowerCase() === `${type.name}Id`.toLowerCase())
-        if (idProp) {
-            idProp.name = 'id'
+        const explicitIdProp = type.properties?.find(x => x.name.toLowerCase() === `${type.name}Id`.toLowerCase())
+        if (explicitIdProp) {
+            const hasId = type.properties.find(x => x.name === 'id')
+            if (hasId) {
+                explicitIdProp.name = 'parentId'
+                explicitIdProp.optional = true
+            } else {
+                explicitIdProp.name = 'id'
+            }
         } else {
             // If using a shortened id for the type e.g. (PerformanceReview, ReviewId)
             const firstProp = type.properties?.[0]

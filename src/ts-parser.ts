@@ -86,7 +86,7 @@ export class TypeScriptParser {
             return multiLineMatch[1].trim();
         }
 
-        return undefined;
+        return undefined
     }
 
     private getPreviousLine(content: string, position: number): string | undefined {
@@ -94,7 +94,8 @@ export class TypeScriptParser {
         const lineNumber = beforePosition.split('\n').length
         if (lineNumber > 0) {
             const lines = content.split('\n')
-            return lines[lineNumber - 2] // -2 because array is 0-based and we want previous line
+            const ret = lines[lineNumber - 2] // -2 because array is 0-based and we want previous line
+            return ret
         }
         return undefined
     }
@@ -109,7 +110,7 @@ export class TypeScriptParser {
             if (annotation) {
                 annotations.push(annotation)
             } else {
-                const comment = this.getLineComment(previousLine)
+                const comment = this.isComment(previousLine) ? this.getLineComment(previousLine) : null
                 if (comment) {
                     commments.unshift(comment)
                 }
@@ -283,7 +284,7 @@ export class TypeScriptParser {
                 }
 
                 const previousLine = this.getPreviousLine(enumBody, enumBody.indexOf(line))
-                if (previousLine) {
+                if (previousLine && this.isComment(previousLine)) {
                     member.comment = this.getLineComment(previousLine)
                 }
                 const lineComment = this.getLineComment(line)
@@ -295,6 +296,12 @@ export class TypeScriptParser {
         })
 
         return members
+    }
+
+    isComment(s?:string) {
+        if (!s) return false
+        s = s.trim()
+        return s.startsWith('//') || s.startsWith('/*')
     }
 
     private parseEnums(content: string): void {

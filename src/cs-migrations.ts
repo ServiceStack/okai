@@ -1,4 +1,4 @@
-import type { MetadataTypes } from "./types"
+import type { MetadataPropertyType, MetadataTypes } from "./types"
 import { CSharpGenerator } from "./cs-gen.js"
 import { indentLines } from "./utils.js"
 
@@ -12,9 +12,12 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
             'ServiceStack.OrmLite',
             ...ast.namespaces
         ]))
-        const hideAttrs = { hide:['description','icon'] }
-        this.classes = ast.types.filter(t => !t.isEnum && !t.isInterface).map(x => this.toClass(x, hideAttrs))
-        this.enums = ast.types.filter(t => t.isEnum).map(x => this.toEnum(x, hideAttrs))
+        // props with [Reference] attribute don't need to be included in the migration (ignore to avoid missing references e.g. User)
+        const ignoreProp = (prop:MetadataPropertyType) => prop.attributes?.some(x => x.name === 'Reference')
+        const hideAttrs = ['description','icon']
+        const opt = { hideAttrs, ignoreProp }
+        this.classes = ast.types.filter(t => !t.isEnum && !t.isInterface).map(x => this.toClass(x, opt))
+        this.enums = ast.types.filter(t => t.isEnum).map(x => this.toEnum(x, opt))
         
         const sb:string[] = []
         if (this.classes.length) {
@@ -90,16 +93,18 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
             }
         })
 
+        const ignoreTables = ['User']
+
         sb.push('    public override void Up()')
         sb.push('    {')
-        for (const typeName of orderedTypes) {
+        for (const typeName of orderedTypes.filter(x => !ignoreTables.includes(x))) {
             sb.push(`        Db.CreateTable<${typeName}>();`)
         }
         sb.push('    }')
         sb.push('')
         sb.push('    public override void Down()')
         sb.push('    {')
-        for (const typeName of orderedTypes.reverse()) {
+        for (const typeName of orderedTypes.filter(x => !ignoreTables.includes(x)).reverse()) {
             sb.push(`        Db.DropTable<${typeName}>();`)
         }
         sb.push('    }')

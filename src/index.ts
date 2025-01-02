@@ -256,8 +256,6 @@ Options:
       }
     }
     
-    command.tsdFile = groupName + '.d.ts'
-    command.type = "update"
     let tsd = `
       export class ${model} {
         id:number
@@ -274,8 +272,9 @@ Options:
       apiFileName:`${groupName}.cs`, 
       tsd,
     })
-    fs.writeFileSync(path.join(info.serviceModelDir, command.tsdFile), tsdContent, { encoding: 'utf-8' })
     command.type = "update" // let update handle the rest
+    command.tsdFile = groupName + '.d.ts'
+    fs.writeFileSync(path.join(info.serviceModelDir, command.tsdFile), tsdContent, { encoding: 'utf-8' })
   }
 
   if (command.type === "add") {
@@ -353,7 +352,7 @@ Options:
       }
   
       console.log(`${logPrefix}${tsdPath}`)
-      const newTsdContent = toTsdHeader(header) + (tsdContent.startsWith('///') ? '' : '\n') + tsdContent
+      const newTsdContent = toTsdHeader(header) + (tsdContent.startsWith('///') ? '' : '\n\n') + tsdContent
       fs.writeFileSync(tsdPath, newTsdContent, { encoding: 'utf-8' })
       return newTsdContent
     }
@@ -848,6 +847,7 @@ function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string,
     sb.push(`migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`)
   }
   sb.push('*/')
+  sb.push('')
   return sb.join('\n') + (opt.tsd.startsWith('///') ? '' : '\n\n') + opt.tsd
 }
 
