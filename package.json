@@ -1,7 +1,7 @@
 {
   "name": "okai",
   "type": "module",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "bin": "./dist/okai.js",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
