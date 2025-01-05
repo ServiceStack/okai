@@ -706,7 +706,7 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
 
   const origTsd = file.content
   const tsdAst = astForProject(toAst(origTsd), info)
-  const res = generateCsAstFromTsd(toTsd(tsdAst))
+  const res = generateCsAstFromTsd(toTsd(tsdAst), { references:[`./api.d.ts`] })
 
   const genApis = new CSharpApiGenerator()
   const csApiFiles = genApis.generate(res.csAst)

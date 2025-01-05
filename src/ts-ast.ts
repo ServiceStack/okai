@@ -40,8 +40,14 @@ export function astForProject(tsAst:ParseResult, info:ProjectInfo) {
 }
 
 // Convert User TypeScript into CS AST and Updated TSD
-export function generateCsAstFromTsd(userTs:string) {
+export function generateCsAstFromTsd(userTs:string, opt?:{references:string[]}) {
     const userTsAst = toAst(userTs) // user modified tsd
+    if (opt?.references) {
+        userTsAst.references = userTsAst.references || []
+        opt.references
+            .filter(x => !userTsAst.references.some(y => y.path === x))
+            .forEach(path => userTsAst.references.push({ path }))
+    }
     const tsd = toTsd(userTsAst)
     const tsdAst = toAst(tsd)
     const csAst = toMetadataTypes(tsdAst)

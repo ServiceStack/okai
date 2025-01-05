@@ -1,5 +1,5 @@
-import { unwrap } from "./cs-ast"
 import type { MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute, MetadataPropertyType } from "./types"
+import { unwrap } from "./cs-ast.js"
 import { leftPart } from "./utils.js"
 
 export class CSharpGenerator {

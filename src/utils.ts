@@ -209,6 +209,7 @@ export function toTsdHeader(header:TsdHeader): string {
         sb.push(`migration: ${header.migration}`)
     }
     sb.push('*/')
+    sb.push('')
     return sb.join('\n')
 }
 
