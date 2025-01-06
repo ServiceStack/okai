@@ -16,6 +16,7 @@ export type ProjectInfo = {
     migrationsDir?: string
     serviceModelDir?: string
     serviceInterfaceDir?: string
+    uiMjsDir?: string
     userType?: string
     userIdType?: string
     userLabel?: string
@@ -24,6 +25,7 @@ export type TsdHeader = {
     prompt: string
     api: string
     migration?: string
+    uiMjs?: string
 }
 
 // from https://raw.githubusercontent.com/ServiceStack/servicestack-vue/refs/heads/main/src/types.ts

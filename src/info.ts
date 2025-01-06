@@ -51,7 +51,7 @@ export function projectInfo(cwd: string) : ProjectInfo {
     const migrationsDir = hostDir && fs.readdirSync(hostDir).find(f => f === "Migrations")
         ? path.join(hostDir, "Migrations")
         : null
-
+    
     const info:ProjectInfo = {
         projectName,
         slnDir,
@@ -59,6 +59,11 @@ export function projectInfo(cwd: string) : ProjectInfo {
         migrationsDir,
         serviceModelDir,
         serviceInterfaceDir,
+    }
+
+    const uiVueDir = path.join(hostDir, "wwwroot", "admin", "sections")
+    if (fs.existsSync(uiVueDir)) {
+        info.uiMjsDir = uiVueDir
     }
 
     for (const file of walk(serviceInterfaceDir, [], {

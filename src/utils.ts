@@ -189,6 +189,8 @@ export function parseTsdHeader(tsd:string): TsdHeader | null {
             to.api = line.replace('api:','').trim()
         } else if (line.startsWith('migration:')) {
             to.migration = line.replace('migration:','').trim()
+        } else if (line.startsWith('ui.mjs:')) {
+            to.uiMjs = line.replace('ui.mjs:','').trim()
         } else if (!to.api && !to.migration && line.trim()) {
             to.prompt += line.trim() + '\n'
         }
@@ -207,6 +209,9 @@ export function toTsdHeader(header:TsdHeader): string {
     ]
     if (header.migration) {
         sb.push(`migration: ${header.migration}`)
+    }
+    if (header.uiMjs) {
+        sb.push(`ui.mjs:    ${header.uiMjs}`)
     }
     sb.push('*/')
     sb.push('')

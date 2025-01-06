@@ -9,6 +9,7 @@ import { CSharpApiGenerator } from "./cs-apis.js"
 import { CSharpMigrationGenerator } from "./cs-migrations.js"
 import { getFileContent } from "./client.js"
 import { toTsd } from "./tsd-gen.js"
+import { UiMjsGroupGenerator, UiMjsIndexGenerator } from "./ui-mjs.js"
 
 type Command = {
   type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept"
@@ -139,7 +140,6 @@ function parseArgs(...args: string[]) : Command {
       }
     }
   }
-  
   return ret
 }
 
@@ -169,6 +169,7 @@ export async function cli(cmdArgs:string[]) {
       migrationsDir: "/path/to/MyApp/Migrations",
       serviceModelDir: "/path/to/MyApp.ServiceModel",
       serviceInterfaceDir: "/path/to/MyApp.ServiceInterfaces",
+      uiMjsDir: "/path/to/MyApp/wwwroot/admin/sections",
     }
     fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
     console.log(`Added: okai.json`)
@@ -267,10 +268,15 @@ Options:
       tsdAst.references.push({ path: './api.d.ts' })
     }
     tsd = toTsd(tsdAst)
+    let uiFileName = info.uiMjsDir 
+      ? path.join(info.uiMjsDir, `${groupName}.mjs`)
+      : null
+
     const tsdContent = createTsdFile(info, {
       prompt:`New ${model}`, 
       apiFileName:`${groupName}.cs`, 
       tsd,
+      uiFileName,
     })
     command.type = "update" // let update handle the rest
     command.tsdFile = groupName + '.d.ts'
@@ -310,15 +316,10 @@ Options:
     }
     return tsdPath
   }
-  function resolveMigrationFile(migrationPath:string) {
-    return migrationPath.startsWith('~/') 
-        ? path.join(info.slnDir, trimStart(migrationPath, '~/'))
-        : path.join(process.cwd(), migrationPath)
-  }
-  function resolveApiFile(apiPath:string) {
-    return apiPath.startsWith('~/') 
-        ? path.join(info.slnDir, trimStart(apiPath, '~/'))
-        : path.join(process.cwd(), apiPath)
+  function resolveFile(filePath:string) {
+    return filePath.startsWith('~/') 
+        ? path.join(info.slnDir, trimStart(filePath, '~/'))
+        : path.join(process.cwd(), filePath)
   }
 
   if (command.type === "update") {
@@ -337,7 +338,7 @@ Options:
       const genApis = new CSharpApiGenerator()
       const csApiFiles = genApis.generate(result.csAst)
       const apiContent = replaceMyApp(csApiFiles[Object.keys(csApiFiles)[0]], info.projectName)
-      const apiPath = resolveApiFile(header.api)
+      const apiPath = resolveFile(header.api)
       console.log(`${logPrefix}${apiPath}`)
       fs.writeFileSync(apiPath, apiContent, { encoding: 'utf-8' })
   
@@ -346,9 +347,25 @@ Options:
         const getMigrations = new CSharpMigrationGenerator()
         const csMigrationFiles = getMigrations.generate(result.csAst)
         const migrationContent = replaceMyApp(csMigrationFiles[Object.keys(csMigrationFiles)[0]].replaceAll('Migration1000', migrationCls), info.projectName)
-        const migrationPath = resolveApiFile(header.migration)
+        const migrationPath = resolveFile(header.migration)
         console.log(`${logPrefix}${migrationPath}`)
         fs.writeFileSync(migrationPath, migrationContent, { encoding: 'utf-8' })
+      }
+
+      if (header?.uiMjs) {
+        const uiMjsGroupPath = resolveFile(header.uiMjs)
+
+        const uiMjsGroupGen = new UiMjsGroupGenerator()
+        const uiMjsGroup = uiMjsGroupGen.generate(result.csAst, result.groupName)
+        console.log(`${logPrefix}${uiMjsGroupPath}`)
+        fs.writeFileSync(uiMjsGroupPath, uiMjsGroup, { encoding: 'utf-8' })
+
+        const uiMjsDir = path.dirname(uiMjsGroupPath)
+        const uiMjsIndexGen = new UiMjsIndexGenerator()
+        const uiMjsIndex = uiMjsIndexGen.generate(fs.readdirSync(uiMjsDir))
+        const uiMjsIndexPath = path.join(uiMjsDir, 'index.mjs')
+        console.log(`${logPrefix}${uiMjsIndexPath}`)
+        fs.writeFileSync(uiMjsIndexPath, uiMjsIndex, { encoding: 'utf-8' })        
       }
   
       console.log(`${logPrefix}${tsdPath}`)
@@ -389,7 +406,7 @@ Options:
     if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
 
     if (header?.migration) {
-      const migrationPath = resolveMigrationFile(header.migration)
+      const migrationPath = resolveFile(header.migration)
       if (fs.existsSync(migrationPath)) {
         fs.unlinkSync(migrationPath)
         console.log(`Removed: ${migrationPath}`)
@@ -398,14 +415,27 @@ Options:
       }
     }
     if (header?.api) {
-      const apiPath = resolveApiFile(header.api)
+      const apiPath = resolveFile(header.api)
       if (fs.existsSync(apiPath)) {
         fs.unlinkSync(apiPath)
         console.log(`Removed: ${apiPath}`)
       } else {
         console.log(`APIs .cs file not found: ${apiPath}`)
       }
-
+    }
+    if (header?.uiMjs) {
+      const uiMjsGroupPath = resolveFile(header.uiMjs)
+      if (fs.existsSync(uiMjsGroupPath)) {
+        fs.unlinkSync(uiMjsGroupPath)
+        console.log(`Removed: ${uiMjsGroupPath}`)
+        const uiMjsDir = path.dirname(uiMjsGroupPath)
+        const uiMjsIndexGen = new UiMjsIndexGenerator()
+        const uiMjsIndex = uiMjsIndexGen.generate(fs.readdirSync(uiMjsDir))
+        const uiMjsIndexPath = path.join(uiMjsDir, 'index.mjs')
+        fs.writeFileSync(uiMjsIndexPath, uiMjsIndex, { encoding: 'utf-8' })        
+      } else {
+        console.log(`UI .mjs file not found: ${uiMjsGroupPath}`)
+      }
     }
     fs.unlinkSync(tsdPath)
     console.log(`Removed: ${tsdPath}`)
@@ -729,10 +759,23 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const apiFile = path.join(import.meta.dirname, 'api.d.ts')
   fs.writeFileSync(apiTypesPath, fs.readFileSync(apiFile, 'utf-8'))
 
+  let uiFileName = null
+  if (info.uiMjsDir) {
+    uiFileName = `${res.groupName}.mjs`
+    const uiGroupPath = path.join(info.uiMjsDir, uiFileName)
+    const uiVueGen = new UiMjsGroupGenerator()
+    const uiGroupSrc = uiVueGen.generate(res.csAst, res.groupName)
+    fs.writeFileSync(uiGroupPath, uiGroupSrc)
+    const uiIndexGen = new UiMjsIndexGenerator()
+    const uiIndexSrc = uiIndexGen.generate(fs.readdirSync(info.uiMjsDir))
+    fs.writeFileSync(path.join(info.uiMjsDir, `index.mjs`), uiIndexSrc)
+  }
+
   const tsdContent = createTsdFile(info, {
       prompt: titleBar.content.replaceAll('/*', '').replaceAll('*/', ''), 
       apiFileName, 
       tsd: res.tsd,
+      uiFileName,
     })
 
   const tsdFileName = `${res.groupName}.d.ts`
@@ -742,7 +785,7 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
 
   if (!fs.existsSync(path.dirname(fullTsdPath))) {
     console.log(`Directory does not exist: ${path.dirname(fullTsdPath)}`)
-    process.exit(0)
+    process.exit(1)
   }
   console.log(`\nSelected '${result.selectedFile}' data models`)
   fs.writeFileSync(fullTsdPath, tsdContent, { encoding: 'utf-8' })
@@ -754,6 +797,7 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   if (fs.existsSync(path.dirname(fullMigrationPath))) {
     fs.writeFileSync(fullMigrationPath, migrationContent, { encoding: 'utf-8' })
     console.log(`Saved: ${fullMigrationPath}`)
+    console.log(`\nRun 'dotnet run --AppTasks=migrate' to apply the new migration and create the new tables`)
   }
 
   const script = path.basename(process.argv[1])
@@ -768,7 +812,7 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
       })
       .catch((err:any) => {
         if (comamnd.verbose) console.log(`ERROR: ${err.message ?? err}`)
-        process.exit(0)
+        process.exit(1)
       })
   } else {
     process.exit(0)
@@ -831,12 +875,15 @@ function exit(screen:blessed.Widgets.Screen, info:ProjectInfo, gist:Gist) {
   process.exit(0)
 }
 
-function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string, tsd:string}) {
+function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string, tsd:string, uiFileName?:string}) {
   const migrationPath = resolveMigrationFile(path.join(info.migrationsDir, `Migration1000.cs`))
   const migrationFileName = path.basename(migrationPath)
   const relativeServiceModelDir = trimStart(info.serviceModelDir.substring(info.slnDir.length), '~/')
   const relativeMigrationDir = info.migrationsDir && fs.existsSync(info.migrationsDir)
     ? trimStart(info.migrationsDir.substring(info.slnDir.length), '~/')
+    : null
+  const relativeUiVueDir = opt.uiFileName && info.uiMjsDir && fs.existsSync(info.uiMjsDir)
+    ? trimStart(info.uiMjsDir.substring(info.slnDir.length), '~/')
     : null
 
   const sb:string[] = [
@@ -846,46 +893,10 @@ function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string,
   if (relativeMigrationDir) {
     sb.push(`migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`)
   }
+  if (relativeUiVueDir) {
+    sb.push(`ui.mjs:    ~/${path.join(relativeUiVueDir,opt.uiFileName)}`)
+  }
   sb.push('*/')
   sb.push('')
   return sb.join('\n') + (opt.tsd.startsWith('///') ? '' : '\n\n') + opt.tsd
 }
-
-
-function applyCSharpGist(ctx:Awaited<ReturnType<typeof createGistPreview>>, 
-  info:ProjectInfo, gist:Gist, 
-  { accept = false, acceptAll = false, discard = false }) {
-  const { screen, titleBar, fileList, preview, statusBar, result } = ctx
-
-  function removeSelected() {    
-    delete gist.files[result.selectedFile]
-    fileList.removeItem(result.selectedFile)
-    const nextFile = Object.keys(gist.files)[0]
-    if (nextFile) {
-      result.selectedFile = nextFile
-      const nextFileIndex = fileList.getItemIndex(nextFile)
-      fileList.select(nextFileIndex)
-      preview.setContent(gist.files[nextFile].content)
-    }
-    screen.render()
-    if (Object.keys(gist.files).length === 0) {
-      //screen.destroy()
-      exit(screen, info, gist)
-    }
-  }
-
-  if (discard) {
-    const file = gist.files[result.selectedFile]
-    removeSelected()
-  } else if (accept) {
-    const file = gist.files[result.selectedFile]
-    writeFile(info, result.selectedFile, file.content)
-    removeSelected()
-  } else if (acceptAll) {
-    for (const [filename, file] of Object.entries(gist.files)) {
-      writeFile(info, filename, file.content)
-    }
-    exit(screen, info, gist)
-  }
-}
-
