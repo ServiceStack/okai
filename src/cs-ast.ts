@@ -201,13 +201,13 @@ export class CSharpAst {
     // Ignore properties with these attributes on APIs
     ignoreCreateProps = [
         'autoIncrement',
-        'references',
+        'reference',
         'compute',
         'computed',
     ].map(x => x.toLowerCase())
     
     ignoreUpdateProps = [
-        'references',
+        'reference',
         'compute',
         'computed',
     ].map(x => x.toLowerCase())

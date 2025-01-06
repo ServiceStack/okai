@@ -1,5 +1,5 @@
 import { MetadataTypes } from "./types"
-import { getGroupName, plural, toCamelCase } from "./utils"
+import { getGroupName, plural, toCamelCase } from "./utils.js"
 
 /*
 export default {
