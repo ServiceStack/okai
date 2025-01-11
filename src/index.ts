@@ -12,7 +12,7 @@ import { toTsd } from "./tsd-gen.js"
 import { UiMjsGroupGenerator, UiMjsIndexGenerator } from "./ui-mjs.js"
 
 type Command = {
-  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept"
+  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept" | "chat"
   prompt?:    string
   models?:    string
   tsdFile?:   string
@@ -22,13 +22,15 @@ type Command = {
   ignoreSsl?: boolean
   debug?:     boolean
   cached?:    boolean
+  system?:    string
   unknown?:   string[]
   baseUrl:    string
   script:     string
   list?:      string
-  add?:      string
+  add?:       string
   accept?:    string
   init?:      string
+  chat?:      string
   info?:      ProjectInfo
 }
 
@@ -76,6 +78,9 @@ function parseArgs(...args: string[]) : Command {
         case "/cached":
             ret.cached = true
             break
+        case "/system":
+            ret.system = args[++i]
+            break
         default:
             ret.unknown = ret.unknown || []
             ret.unknown.push(arg)
@@ -112,6 +117,9 @@ function parseArgs(...args: string[]) : Command {
         ret.type = "accept"
         ret.accept = args[++i]
       }
+    } else if (arg == "chat") {
+      ret.type = "chat"
+      ret.chat = args[++i]
     } else if (arg.endsWith('.d.ts')) {
       if (ret.type == "help") ret.type = "update"
       ret.tsdFile = arg
@@ -195,6 +203,8 @@ ${bin} ls models            Display list of available premium LLM models
 ${bin} init                 Initialize okai.json with project info to override default paths
 ${bin} init <model>         Create an empty <model>.d.ts file for the specified model
 ${bin} info                 Display current project info
+${bin} chat <prompt>        Submit a new OpenAI chat request with the specified prompt
+    -system <prompt>         Specify a system prompt
 
 Options:
     -v, -verbose             Display verbose logging
@@ -453,6 +463,39 @@ Options:
 
   if (command.type == "accept") {
     await acceptGist(command, command.accept)
+    process.exit(0)
+  }
+
+  if (command.type === "chat") {
+    try {
+      const url = new URL('/chat', command.baseUrl)
+      const formData = new FormData()
+      formData.append('prompt', command.chat)
+      if (command.system) {
+        formData.append('system', command.system)
+      }
+      if (command.models) {
+        formData.append('model', command.models)
+        if (command.license) {
+          formData.append('license', command.license)
+        }
+      }
+      if (command.verbose) console.log(`POST: ${url}`)
+      const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        console.log(`Failed to chat: ${res.statusText}`)
+        process.exit(1)
+      }
+      const response = await res.json()
+      if (command.verbose) console.log(JSON.stringify(response, undefined, 2))
+      const content = response.choices[response.choices.length - 1]?.message?.content
+      console.log(content)
+    } catch (err) {
+      console.error(err)
+    }
     process.exit(0)
   }
 
