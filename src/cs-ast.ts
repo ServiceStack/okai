@@ -4,7 +4,7 @@ import type {
 } from "./types"
 import { ParsedAnnotation, ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
 import { getGroupName, leftPart, plural, rightPart, splitCase, toPascalCase } from "./utils.js"
-import { Icons } from "./icons.js"
+import { getIcon } from "./icons.js"
 
 const sys = (name:string, genericArgs?:string[]) => ({ name, namespace: "System", genericArgs })
 const sysObj = sys("object")
@@ -1050,7 +1050,7 @@ export function addAutoIncrementAttrs(gen:CSharpAst) {
 // Add Icon for BuiltIn UIs and AutoQueryGrid to known type names
 export function addIconsToKnownTypes(gen:CSharpAst) {
     for (const type of gen.typesWithPrimaryKeys) {
-        const icon = Icons[type.name]
+        const icon = getIcon(type.name)
         if (icon) {
             if (!type.attributes) type.attributes = []
             const existingIcon = type.attributes.find(x => x.name === 'Icon')

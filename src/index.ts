@@ -218,7 +218,7 @@ Options:
   if (!info) {
     if (!info) {
       console.log(`No .sln file found`)
-      console.log(`okai needs to be run within a ServiceStack App that contains a ServiceModel project`)
+      console.log(`okai needs to be run within the context of a ServiceStack App containing a ServiceModel project`)
       console.log(`To use with an external or custom project, create an okai.json config file with:`)
       console.log(`$ ${script} init`)
       process.exit(1)

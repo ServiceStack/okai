@@ -93,6 +93,9 @@ export function requestKey(date:Date): string {
 export function acceptedKey(date:Date): string {
     return `accepted/${timestampKey(date)}`
 }
+export function chatKey(date:Date): string {
+    return `chat/${timestampKey(date)}`
+}
 
 export function timestampKey(date: Date): string {
     const year = date.getFullYear()
@@ -155,6 +158,23 @@ export function pick(o:any, keys:string[]) {
         }
     })
     return to
+}
+
+export function appendQueryString(url: string, args: any): string {
+    for (let k in args) {
+        if (args.hasOwnProperty(k)) {
+            let val = args[k]
+            if (typeof val == 'undefined' || typeof val == 'function' || typeof val == 'symbol') continue
+            url += url.indexOf("?") >= 0 ? "&" : "?"
+            url += k + (val === null ? '' :  "=" + qsValue(val))
+        }
+    }
+    return url
+}
+function qsValue(arg: any) {
+    if (arg == null)
+        return ""
+    return encodeURIComponent(arg) || ""
 }
 
 export function refCount(t:MetadataType) {

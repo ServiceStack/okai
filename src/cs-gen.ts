@@ -8,6 +8,7 @@ export class CSharpGenerator {
     classes: string[] = []
     enums: string[] = []
     ast: MetadataTypes = { namespaces:[], operations:[], types: [] }
+    typeFilter?: { before?: (type:MetadataType, sb:string[]) => void, after?: (type:MetadataType, sb:string[]) => void }
 
     typeHasAttr(type:MetadataType, name:string) {
         return type.attributes?.some(x => x.name === name)
@@ -62,6 +63,10 @@ export class CSharpGenerator {
     toClass(cls:MetadataType, opt?:{hideAttrs:string[], ignoreProp?:(prop:MetadataPropertyType)=>boolean}) {
         const showDesc = !opt || !opt.hideAttrs?.includes('description')
         const sb:string[] = []
+
+        if (this.typeFilter?.before) {
+            this.typeFilter.before(cls, sb)
+        }
         let clsDef = `public class ${cls.name}`
         if (cls.inherits) {
             this.addNamespace(cls.inherits.namespace)
@@ -98,6 +103,9 @@ export class CSharpGenerator {
             sb.push(`    public ${propType} ${prop.name} { get; set; }`)
         }
         sb.push('}')
+        if (this.typeFilter?.after) {
+            this.typeFilter.after(cls, sb)
+        }
         return sb.join('\n')
     }
 
