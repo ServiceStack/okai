@@ -213,6 +213,7 @@ export const Icons:{[name:string]:string} = withAliases({
     Page:['Article','Document'],
     Policy:['Privacy','CompanyPolicy'],
     Gift:['Benefit'],
+    Deduct:['Deduction'],
     Tax:['Taxes'],
     Tag:['Label'],
     Type:['Title','JobTitle'],

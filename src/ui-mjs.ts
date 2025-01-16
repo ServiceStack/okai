@@ -1,5 +1,5 @@
 import { MetadataTypes } from "./types"
-import { getGroupName, plural, toCamelCase } from "./utils.js"
+import { getGroupName, plural, toCamelCase, splitCase } from "./utils.js"
 
 /*
 export default {
@@ -26,7 +26,7 @@ export class UiMjsGroupGenerator {
     generate(ast:MetadataTypes, groupLabel?:string) {
         if (!groupLabel) {
             const groupName = getGroupName(ast)
-            groupLabel = plural(groupName)
+            groupLabel = splitCase(plural(groupName))
         }
         const sb = [
             `export default {`,
