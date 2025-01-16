@@ -1,14 +1,48 @@
+import { splitCase } from "./utils.js"
+
 export function getIcon(type:string):string {
+    const words = splitCase(type).split(' ')
+    const candidates = generateCombinations(words).map(x => x.toLowerCase())
+
     type = type.toLowerCase()
     if (Icons[type]) {
         return Icons[type]
     }
-    for (const key of IconKeys) {
-        if (type.indexOf(key) >= 0) {
-            return Icons[key]
+    for (const word of candidates) {
+        if (Icons[word]) {
+            return Icons[word]
+        }
+        if (word.endsWith('s')) {
+            const singular = word.substring(0, word.length - 1)
+            if (Icons[singular]) {
+                return Icons[singular]
+            }
+        }
+    }
+    for (const word of candidates) {
+        for (const key of IconKeys) {
+            if (word.indexOf(key) >= 0) {
+                return Icons[key]
+            }
         }
     }
     return null
+}
+
+export function generateCombinations(words:string[]) {
+    const result = []
+    for (let i = 0; i < words.length; i++) {
+      // Join the last words.length-i elements
+      const combination = words.slice(-(i + 1)).join('')
+      result.push(combination)
+    }
+    const ret = result.reverse()
+    words.reverse().forEach((word, i) => {
+        if (!ret.includes(word)) {
+            ret.push(word)
+        }
+    })
+    return ret
 }
 
 function withAliases(icons:{[name:string]:string}, aliases:{[name:string]:string[]}):{[name:string]:string} {
@@ -178,7 +212,7 @@ export const Icons:{[name:string]:string} = withAliases({
     Library:['Module'],
     Page:['Article','Document'],
     Policy:['Privacy','CompanyPolicy'],
-    Gift:['Benefit','EmployeeBenefit'],
+    Gift:['Benefit'],
     Tax:['Taxes'],
     Tag:['Label'],
     Type:['Title','JobTitle'],
