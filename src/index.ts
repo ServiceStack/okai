@@ -10,6 +10,7 @@ import { CSharpMigrationGenerator } from "./cs-migrations.js"
 import { getFileContent } from "./client.js"
 import { toTsd } from "./tsd-gen.js"
 import { UiMjsGroupGenerator, UiMjsIndexGenerator } from "./ui-mjs.js"
+import { ParsedConfig, ParseResult } from "./ts-parser.js"
 
 type Command = {
   type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept" | "chat"
@@ -277,15 +278,15 @@ Options:
     if (tsdAst.references.length == 0) {
       tsdAst.references.push({ path: './api.d.ts' })
     }
-    tsd = toTsd(tsdAst)
+    
     let uiFileName = info.uiMjsDir 
-      ? path.join(info.uiMjsDir, `${groupName}.mjs`)
+      ? `${groupName}.mjs`
       : null
 
     const tsdContent = createTsdFile(info, {
       prompt:`New ${model}`, 
       apiFileName:`${groupName}.cs`, 
-      tsd,
+      tsdAst,
       uiFileName,
     })
     command.type = "update" // let update handle the rest
@@ -337,10 +338,16 @@ Options:
 
     if (command.verbose) console.log(`Updating: ${tsdPath}...`)
     let tsdContent = fs.readFileSync(tsdPath, 'utf-8')
-    const header = parseTsdHeader(tsdContent)
+    //const header = parseTsdHeader(tsdContent)
+    const ast = toAst(tsdContent)
+    const header = ast.config
     if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
 
-    function regenerate(header:TsdHeader, tsdContent:string, logPrefix = '') {
+    function regenerate(header:ParsedConfig, tsdContent:string, logPrefix = '') {
+      if (!header) {
+        console.log(`No header found in ${tsdPath}`)
+        process.exit(1)
+      }
   
       const result = generateCsAstFromTsd(tsdContent)
       tsdContent = result.tsd
@@ -379,7 +386,8 @@ Options:
       }
   
       console.log(`${logPrefix}${tsdPath}`)
-      const newTsdContent = toTsdHeader(header) + (tsdContent.startsWith('///') ? '' : '\n\n') + tsdContent
+      result.tsdAst.config = header
+      const newTsdContent = toTsd(result.tsdAst)
       fs.writeFileSync(tsdPath, newTsdContent, { encoding: 'utf-8' })
       return newTsdContent
     }
@@ -815,11 +823,11 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   }
 
   const tsdContent = createTsdFile(info, {
-      prompt: titleBar.content.replaceAll('/*', '').replaceAll('*/', ''), 
-      apiFileName, 
-      tsd: res.tsd,
-      uiFileName,
-    })
+    prompt: titleBar.content.replaceAll('/*', '').replaceAll('*/', ''), 
+    apiFileName, 
+    tsdAst: res.tsdAst,
+    uiFileName,
+  })
 
   const tsdFileName = `${res.groupName}.d.ts`
   const fullTsdPath = path.join(info.slnDir,relativeServiceModelDir,tsdFileName)
@@ -918,7 +926,7 @@ function exit(screen:blessed.Widgets.Screen, info:ProjectInfo, gist:Gist) {
   process.exit(0)
 }
 
-function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string, tsd:string, uiFileName?:string}) {
+function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string, tsdAst:ParseResult, uiFileName?:string}) {
   const migrationPath = resolveMigrationFile(path.join(info.migrationsDir, `Migration1000.cs`))
   const migrationFileName = path.basename(migrationPath)
   const relativeServiceModelDir = trimStart(info.serviceModelDir.substring(info.slnDir.length), '~/')
@@ -929,17 +937,17 @@ function createTsdFile(info:ProjectInfo, opt:{prompt:string, apiFileName:string,
     ? trimStart(info.uiMjsDir.substring(info.slnDir.length), '~/')
     : null
 
-  const sb:string[] = [
-    `/*prompt:  ${opt.prompt}`,
-    `api:       ~/${path.join(relativeServiceModelDir,opt.apiFileName)}`,
-  ]
+  const ast = opt.tsdAst
+  ast.config = {
+    prompt: opt.prompt,
+    api: `~/${path.join(relativeServiceModelDir,opt.apiFileName)}`
+  }
   if (relativeMigrationDir) {
-    sb.push(`migration: ~/${path.join(relativeMigrationDir,migrationFileName)}`)
+    ast.config.migration = `~/${path.join(relativeMigrationDir,migrationFileName)}`
   }
   if (relativeUiVueDir) {
-    sb.push(`ui.mjs:    ~/${path.join(relativeUiVueDir,opt.uiFileName)}`)
+    //console.log('relativeUiVueDir', relativeUiVueDir, info.uiMjsDir, opt.uiFileName)
+    ast.config.uiMjs = `~/${path.join(relativeUiVueDir,opt.uiFileName)}`
   }
-  sb.push('*/')
-  sb.push('')
-  return sb.join('\n') + (opt.tsd.startsWith('///') ? '' : '\n\n') + opt.tsd
+  return toTsd(ast)
 }

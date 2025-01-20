@@ -1,5 +1,17 @@
-import { lastLeftPart, leftPart, rightPart } from "./utils.js"
+import { lastLeftPart, lastRightPart, leftPart, rightPart, trimEnd } from "./utils.js"
 
+export interface ParsedConfig {
+    prompt?: string
+    api?: string 
+    migration?: string
+    uiMjs?: string
+    [key: string]: any
+}
+
+export interface ParsedDefaultExport {
+    [key: string]: any
+}
+  
 export interface ParsedProperty {
     modifier?: string
     name: string
@@ -50,6 +62,8 @@ export interface ParsedReference {
 }
 
 export interface ParseResult {
+    config?: ParsedConfig
+    defaultExport?: ParsedDefaultExport
     classes: ParsedClass[]
     interfaces: ParsedInterface[]
     enums: ParsedEnum[]
@@ -57,14 +71,20 @@ export interface ParseResult {
 }
 
 export class TypeScriptParser {
+    private static readonly CONFIG_TYPE_PATTERN = /export\s+type\s+Config\s*=\s*{([^}]+)}/
+    private static readonly CONFIG_PROPERTY_PATTERN = /(\w+)\s*:\s*("[^"]*"|'[^']*')/g
+    private static readonly DEFAULT_EXPORT_PATTERN = /export\s+default\s+({[^}]+})/
     private static readonly CLASS_PATTERN = /class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([\w,\s]+))?\s*{/g
     private static readonly INTERFACE_PATTERN = /interface\s+(\w+)(?:\s+extends\s+(\w+))?\s*{/g
     private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/g
     private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>[\w<>[\],\s]+)(?<union>\|\s*[\w<>[\],|,\s]+)?\s*;?/
     private static readonly ENUM_MEMBER_PATTERN = /(\w+)\s*(?:=\s*("[^"]*"|'[^']*'|\d+|[^,\n]+))?\s*/
     public static readonly ANNOTATION_PATTERN = /^\s*@([A-Za-z_][A-Za-z0-9_]*\.?[A-Za-z_]?[A-Za-z0-9_]*)/
+    public static readonly ANNOTATION_COMMENT = /\)[\s]*\/\/.*$/
     private static readonly REFERENCE_PATTERN = /\/\/\/\s*<reference\s+path="([^"]+)"\s*\/>/g;
 
+    private config?: ParsedConfig
+    private defaultExport?: ParsedDefaultExport
     private classes: ParsedClass[] = [];
     private interfaces: ParsedInterface[] = [];
     private enums: ParsedEnum[] = [];
@@ -72,18 +92,24 @@ export class TypeScriptParser {
 
     private getLineComment(line: string): string | undefined {
         if (line.match(TypeScriptParser.REFERENCE_PATTERN)) {
-            return undefined;
+            return undefined
+        }
+        if (line.trim().startsWith('@')) {
+            if (TypeScriptParser.ANNOTATION_COMMENT.test(line)) {
+                return lastRightPart(line, '//')!.trim()
+            }
+            return undefined
         }
         // Check for single line comment at end of line
         const singleLineMatch = line.match(/.*?\/\/\s*(.+)$/);
         if (singleLineMatch) {
-            return singleLineMatch[1].trim();
+            return singleLineMatch[1].trim()
         }
 
         // Check for inline multi-line comment
         const multiLineMatch = line.match(/.*?\/\*\s*(.+?)\s*\*\//);
         if (multiLineMatch) {
-            return multiLineMatch[1].trim();
+            return multiLineMatch[1].trim()
         }
 
         return undefined
@@ -98,6 +124,42 @@ export class TypeScriptParser {
             return ret
         }
         return undefined
+    }
+
+    private parseConfigType(content: string): void {
+        const match = content.match(TypeScriptParser.CONFIG_TYPE_PATTERN)
+        if (match) {
+            const configBody = match[1]
+            const config: ParsedConfig = {}
+            
+            let propertyMatch
+            while ((propertyMatch = TypeScriptParser.CONFIG_PROPERTY_PATTERN.exec(configBody))) {
+                const [, key, value] = propertyMatch
+                config[key] = value.slice(1, -1) // Remove quotes
+            }
+            this.config = config
+        }
+    }
+    
+    private parseDefaultExport(content: string): void {
+        const match = content.match(TypeScriptParser.DEFAULT_EXPORT_PATTERN)
+        if (match) {
+            try {
+                const configStr = match[1]
+                const defaultExport : ParsedDefaultExport = {}
+                const lines = configStr.split('\n')
+                for (const line of lines) {
+                    if (line.includes(':')) {
+                        const key = leftPart(line, ':')!.trim()
+                        const val = trimEnd(rightPart(line, ':')!.trim(), ',')
+                        defaultExport[key] = JSON.parse(val)
+                    }
+                }
+                this.defaultExport = defaultExport
+            } catch (e) {
+                console.warn('Failed to parse default export config:', e)
+            }
+        }
     }
 
     parseMetadata(body:string, line:string) {
@@ -127,10 +189,11 @@ export class TypeScriptParser {
             }
         }
 
-        return {
+        const ret = {
             comment: commments.length ? commments.join('\n') : undefined,
             annotations: annotations.length ? annotations : undefined,
         }
+        return ret
     }
 
     private parseClassProperties(classBody: string): ParsedProperty[] {
@@ -274,7 +337,7 @@ export class TypeScriptParser {
 
                 if (value) {
                     // Remove quotes if present
-                    const cleanValue = value.trim().replace(/^["']|["']$/g, '')
+                    const cleanValue = value.trim().replace(/^["'`]|["'`]$/g, '')
                     member.value = isNaN(Number(cleanValue)) ? cleanValue : Number(cleanValue)
                 } else {
                     member.value = prevIntValue + 1
@@ -326,16 +389,22 @@ export class TypeScriptParser {
     }
 
     public parse(sourceCode: string): ParseResult {
+        this.config = undefined
+        this.defaultExport = undefined
         this.classes = []
         this.interfaces = []
         this.enums = []
 
+        this.parseConfigType(sourceCode)
+        this.parseDefaultExport(sourceCode)
         this.parseReferences(sourceCode);
         this.parseInterfaces(sourceCode)
         this.parseClasses(sourceCode)
         this.parseEnums(sourceCode)
 
         return {
+            config: this.config,
+            defaultExport: this.defaultExport,
             references: this.references,
             classes: this.classes,
             interfaces: this.interfaces,
@@ -346,8 +415,9 @@ export class TypeScriptParser {
 
 export function parseAnnotation(annotation: string) {
     const regex = TypeScriptParser.ANNOTATION_PATTERN
-    if (annotation.includes('//')) {
-        annotation = leftPart(annotation, '//')!
+    // search for // after closing parenthesis and remove it
+    if (TypeScriptParser.ANNOTATION_COMMENT.test(annotation)) {
+        annotation = lastLeftPart(annotation, '//')!
     }
     const match = annotation.match(regex)
 

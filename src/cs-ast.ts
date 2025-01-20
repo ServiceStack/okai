@@ -198,6 +198,12 @@ export class CSharpAst {
         'intlRelativeTime',
     ].map(x => x.toLowerCase())
 
+    // Only generate these attributes when it's API specific, e.g. Read.notes("...")
+    targetOnlyAttrs = [
+        'description',
+        'notes',
+    ].map(x => x.toLowerCase())
+
     // Ignore properties with these attributes on APIs
     ignoreCreateProps = [
         'autoIncrement',
@@ -450,6 +456,7 @@ export class CSharpAst {
                             ? this.ignoreDeleteValidators
                             : []
             : []
+        const targetOnlyAttrs = this.targetOnlyAttrs
 
         function shouldInclude(attr:MetadataAttribute, dtoType:"Read"|"Create"|"Update"|"Delete"|"Model") {
             if (!validAttrs.includes(attr.name.toLowerCase())) return false
@@ -466,6 +473,9 @@ export class CSharpAst {
                 const nameLower = attr.name.toLowerCase()
                 if (isRequest) {
                     if (attrType === "Type") {
+                        if (targetOnlyAttrs.includes(nameLower)) {
+                            return false
+                        }
                         return requestAttrs.includes(nameLower)
                     } else if (attrType === "Prop") {
                         if (ignoreValidators.length && ignoreValidators.includes(nameLower)) 
@@ -482,6 +492,7 @@ export class CSharpAst {
             }
             return true
         }
+
         const to:MetadataAttribute[] = []
         for (const attr of attrs || []) {
             if (shouldInclude(attr, dtoType)) {
@@ -861,10 +872,6 @@ export function replaceReference(gen:CSharpAst, fromType:string, toType:string) 
             }
         }
     }
-}
-
-export function replaceServiceReferences(gen:CSharpAst) {
-    replaceReferences(gen, ['Service'])
 }
 
 export function replaceReferences(gen:CSharpAst, references:string[]) {

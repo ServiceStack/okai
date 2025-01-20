@@ -179,6 +179,7 @@ function interfaceToClass(ast:ParsedInterface) {
 export function replaceReferences(tsAst:ParseResult) {
     const references = [
         'Service',
+        'Task',
     ]
     // The most important types are the ones with the most references
     const refCount = (t:ParsedClass) => t.properties?.filter(

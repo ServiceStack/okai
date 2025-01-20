@@ -177,6 +177,14 @@ function qsValue(arg: any) {
     return encodeURIComponent(arg) || ""
 }
 
+export function trimEnd(s: string, c: string) {
+    let end = s.length
+    while (end > 0 && s[end - 1] === c) {
+        --end
+    }
+    return (end < s.length) ? s.substring(0, end) : s
+}
+
 export function refCount(t:MetadataType) {
     return t.properties?.filter(
         x => x.attributes?.some(x => x.name === 'References')).length || 0

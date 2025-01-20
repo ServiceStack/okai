@@ -6,6 +6,7 @@ export type GistFile = {
     raw_url: string
 }
 export type Gist = {
+    description: string
     files: { [key: string]: GistFile }
 }
 

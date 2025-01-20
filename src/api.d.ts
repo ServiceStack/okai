@@ -1,4 +1,61 @@
 declare global {
+    export class bool {}
+    export class byte {} export class Byte {}
+    export class sbyte {} export class SByte {}
+    export class char {} export class Char {}
+    export class decimal {} export class Decimal {}
+    export class double {} export class Double {}
+    export class float {} export class Single {}
+    export class int {} export class Int32 {}
+    export class uint {} export class UInt32 {}
+    export class nint {} export class IntPtr {}
+    export class nuint {} export class UIntPtr {}
+    export class long {} export class Int64 {}
+    export class ulong {} export class UInt64 {}
+    export class short {} export class Int16 {}
+    export class ushort {} export class UInt16 {}
+    export class dynamic {} export class Dynamic {}
+    export class DateTime {}
+    export class TimeSpan {}
+    export class DateOnly {}
+    export class TimeOnly {}
+    export class Guid {}
+    export class List<T> {}
+    export class HashSet<T> {}
+    export class Dictionary<Key,Value> {}
+    export class Color {}
+
+    export interface IReturn<T> {}
+    export interface IReturnVoid {}
+
+    export interface IGet {}
+    export interface IPost {}
+    export interface IPut {}
+    export interface IPatch {}
+    export interface IDelete {}
+    export interface IOptions {}
+
+    export interface ICreateDb<Table> {}
+    export interface IPatchDb<Table> {}
+    export interface IUpdateDb<Table> {}
+    export interface IDeleteDb<Table> {}
+    export class QueryDb<T> extends QueryBase {}
+    export class QueryDb2<From,Into> extends QueryBase {}
+    export class QueryBase {}
+
+    export interface IHasSessionId {}
+    export interface IHasBearerToken {}
+
+    export class EmptyResponse {}
+    export class IdResponse {}
+    export class StringsResponse {}
+    export class StringResponse {}
+    export class IntResponse {}
+    export class BoolResponse {}
+    export class ErrorResponse {}
+    export class ResponseError {}
+    export class ResponseStatus {}
+
     export class AuditBase {
         createdDate: Date
         createdBy: string
@@ -65,19 +122,23 @@ declare global {
     export function apiResponse(statusCode:number, description:string, opt?:{ isDefaultResponse?:boolean, responseType?:TypeOf }) : ClassDecoratorDef
     
     export function dataContract() : ClassDecoratorDef
-    export function route(path:string, opt?:{ summary?:string, notes?:string, verbs?:string, priority?:number, matches?:string, }) : ClassDecoratorDef
+    export function route(path:string, opt?:{ summary?:string, notes?:string, verbs?:string, priority?:number, matches?:string, }|string) : ClassDecoratorDef
     export function icon(opt?:{ svg?:string, uri?:string, alt?:string, cls?:string, }) : ClassDecoratorDef
     export function field(opt?:InputAttrOptions & { name?:string, fieldCss?:string, inputCss?:string, labelCss?:string, }) : ClassDecoratorDef
     export function tag(name:string) : ClassDecoratorDef
     export function worker(name:string) : ClassDecoratorDef
     export function notes(notes:string) : ClassDecoratorDef
     export function namedConnection(name:string) : ClassDecoratorDef
-    
+    export function explorerCss(opt?:{ form?:string, fieldset?:string, field?:string, }) : ClassDecoratorDef
+    export function locodeCss(opt?:{ form?:string, fieldset?:string, field?:string, }) : ClassDecoratorDef
+
     export enum QueryTerm { Default = 0, And = 1, Or = 2, Ensure = 3, }
     export function queryDb(defaultTerm:QueryTerm) : ClassDecoratorDef
     export function queryData(defaultTerm:QueryTerm) : ClassDecoratorDef
     export function autoFilter(term:QueryTerm, field?:string, opt?:{ operand?:string, template?:string, valueFormat:string }) : ClassDecoratorDef
     export function autoPopulate(field?:string, opt?:ScriptValueOptions) : ClassDecoratorDef
+    export function autoApply(name:string|Behavior, args?:string[]) : ClassDecoratorDef
+
     export class SqlTemplate {
         static IsNull: string
         static IsNotNull: string
@@ -89,10 +150,18 @@ declare global {
         static CaseSensitiveLike: string
         static CaseInsensitiveLike: string
     }
+    export enum Behavior {
+        AuditQuery,
+        AuditCreate,
+        AuditModify,
+        AuditDelete,
+        AuditSoftDelete,
+    }
 
     export function alias(table:string) : ClassOrFieldDecoratorDef
     export function meta(name:string,value:string) : ClassOrFieldDecoratorDef
     export function priority(value:string) : ClassOrFieldDecoratorDef
+    export function description(description:string) : ClassOrFieldDecoratorDef
     
     // Enum decorators
     export function flags() : ClassDecoratorDef
@@ -141,7 +210,6 @@ declare global {
     export function customUpdate(sql:string) : ClassFieldDecoratorDef
     export function decimalLength(precision:number, scale?:number) : ClassFieldDecoratorDef
     export function Default(value:string|number|boolean) : ClassFieldDecoratorDef
-    export function description(description:string) : ClassFieldDecoratorDef
     export function enumAsInt() : ClassFieldDecoratorDef
     export function excludeMetadata() : ClassFieldDecoratorDef
     export function excludeFromDescription() : ClassFieldDecoratorDef
@@ -166,10 +234,9 @@ declare global {
     
     export enum AutoUpdateStyle { Always, NonDefaults }
     export function autoUpdate(style:AutoUpdateStyle) : ClassFieldDecoratorDef
-    export function autoDefault(opt:ScriptValueOptions) : ClassFieldDecoratorDef
-    export function autoMap(to:string) : ClassFieldDecoratorDef
+    export function autoDefault(opt:ScriptValueOptions) : ClassOrFieldDecoratorDef
+    export function autoMap(to:string) : ClassOrFieldDecoratorDef
     export function autoIgnore() : ClassFieldDecoratorDef
-    export function autoApply(name:string, args?:string[]) : ClassFieldDecoratorDef
     
     export function apiMember(opt?:{ name?:string, verb?:string, parameterType?:string, description?:string, dataType?:string,
         format?:string, isRequired?:boolean, isOptional?:boolean, allowMultiple?:boolean, route?:string, excludeInSchema?:boolean
@@ -179,8 +246,6 @@ declare global {
     export function dataMember(opt?:{ name?:string, order?:number, isRequired?:boolean }) : ClassFieldDecoratorDef
     export function input(opt?:InputAttrOptions) : ClassFieldDecoratorDef
     export function fieldCss(opt?:{ field?:string, input?:string, label?:string, }) : ClassFieldDecoratorDef
-    export function explorerCss(opt?:{ form?:string, fieldset?:string, field?:string, }) : ClassFieldDecoratorDef
-    export function locodeCss(opt?:{ form?:string, fieldset?:string, field?:string, }) : ClassFieldDecoratorDef
     export function uploadTo(location:string) : ClassFieldDecoratorDef
     export function ref(opt?:{ modelType?:TypeOf, model?:string, refId?:string, refLabel?:string, selfId?:string, queryType?:TypeOf, none?:boolean, }) : ClassFieldDecoratorDef
     export type FormatMethods = "currency"|"bytes"|"icon"|"iconRounded"|"attachment"|"link"|"linkMailTo"|"linkTel"|"enumFlags"|"hidden"
@@ -213,7 +278,7 @@ declare global {
     }
     
     export function intl(type:IntlFormat, opt?:IntlOptions) : ClassFieldDecoratorDef
-    export function intlNumber(number?:NumberStyle) : ClassFieldDecoratorDef
+    export function intlNumber(number?:NumberStyle|IntlOptions, opt?:IntlOptions) : ClassFieldDecoratorDef
     export function intlDateTime(date?:DateStyle, time?:TimeStyle) : ClassFieldDecoratorDef
     export function intlRelativeTime(numeric?:Numeric) : ClassFieldDecoratorDef
 
@@ -238,6 +303,7 @@ declare global {
         queryData:typeof queryData
         autoFilter:typeof autoFilter
         autoPopulate:typeof autoPopulate
+        autoApply:typeof autoApply
 
         route:typeof route
         field:typeof field
@@ -257,6 +323,8 @@ declare global {
 
         namedConnection:typeof namedConnection
         icon:typeof icon
+        locodeCss: typeof locodeCss
+        explorerCss: typeof explorerCss
 
         // Class or Field Attrs
         alias:typeof alias
@@ -294,7 +362,6 @@ declare global {
         autoDefault:typeof autoDefault
         autoMap:typeof autoMap
         autoIgnore:typeof autoIgnore
-        autoApply:typeof autoApply
 
         apiMember:typeof apiMember
         apiAllowableValues:typeof apiAllowableValues
@@ -309,6 +376,7 @@ declare global {
         // alias:typeof alias
         // meta:typeof meta
         priority:typeof priority
+        description:typeof description
 
         primaryKey:typeof primaryKey
         autoId:typeof autoId
@@ -328,7 +396,6 @@ declare global {
         customUpdate:typeof customUpdate
         decimalLength:typeof decimalLength
         Default:typeof Default
-        description:typeof description
         enumAsInt:typeof enumAsInt
         excludeMetadata:typeof excludeMetadata
         excludeFromDescription:typeof excludeFromDescription

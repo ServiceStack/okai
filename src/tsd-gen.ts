@@ -2,12 +2,27 @@ import { ParsedAnnotation, ParsedClass, ParsedEnum, ParsedInterface, ParseResult
 
 export class TsdGenerator {
 
+    export: boolean = true
     interfaces: string[] = []
     enums: string[] = []
     ast: ParseResult = { references:[], classes:[], interfaces:[], enums: [] }
 
+    get typePrefix() {
+        return this.export ? 'export ' : ''
+    }
+
+    isEnumValue(value:string) {
+        const parts = (value ?? '').split('.')
+        if (parts.length !== 2) return false
+        const isUpper = (charCode:number) => charCode >= 65 && charCode <= 90
+        const isAlphaNum = (s:string) => /^[a-z0-9]+$/i.test(s)
+        return isAlphaNum(parts[0]) && isUpper(parts[0].charCodeAt(0)) && isAlphaNum(parts[1]) && isUpper(parts[1].charCodeAt(0)) 
+    }
+
     attrValue(type:string, value:any) {
-        return type === 'string' ? `"${value}"` : value
+        return type === 'string' && !this.isEnumValue(value)
+            ? `"${value}"` 
+            : value
     }
 
     toAttr(attr:ParsedAnnotation) {
@@ -40,18 +55,18 @@ export class TsdGenerator {
             sb.push(ast.comment.split('\n').map(x => `// ${x}`).join('\n'))
         }
         if (ast.annotations?.length) {
-            for (const attr of ast.annotations) {
+            for (const attr of sortAnnotations(ast.annotations)) {
                 sb.push(this.toAttr(attr))
             }
         }
         const extend = ast.extends ? ` extends ${ast.extends}` : ''
-        sb.push(`export ${type} ${ast.name}${extend} {`)
+        sb.push(`${this.typePrefix}${type} ${ast.name}${extend} {`)
         for (const prop of ast.properties) {
             if (prop.comment) {
                 sb.push(prop.comment.split('\n').map(x => `  // ${x}`).join('\n'))
             }
             if (prop.annotations?.length) {
-                for (const attr of prop.annotations) {
+                for (const attr of sortAnnotations(prop.annotations)) {
                     sb.push('  ' + this.toAttr(attr))
                 }
             }
@@ -66,14 +81,17 @@ export class TsdGenerator {
         if (ast.comment) {
             sb.push(ast.comment.split('\n').map(x => `// ${x}`).join('\n'))
         }
-        sb.push(`export enum ${ast.name} {`)
+        sb.push(`${this.typePrefix}enum ${ast.name} {`)
+        const allStringValuesMatch = ast.members.every(x => typeof x.value === 'string' && x.value === x.name)
         for (let i = 0; i < ast.members.length; i++) {
             const member = ast.members[i]
             if (member.comment) {
                 sb.push(member.comment.split('\n').map(x => `  // ${x}`).join('\n'))
             }
             const value = typeof member.value === 'string' 
-                ? ` = '${member.value}'` 
+                ? allStringValuesMatch
+                    ? `` 
+                    : ` = ${member.value}`
                 : member.value !== (i+1) ? ` = ${member.value}` : ''
             sb.push(`  ${member.name}${value},`)
         }
@@ -88,8 +106,22 @@ export class TsdGenerator {
             for (const ref of ast.references) {
                 sb.push(`/// <reference path="${ref.path}" />`)
             }
-            sb.push('')
         }
+        if (ast.config) {
+            sb.push(`export type Config = {`)
+            const knownKeys = ['prompt','api','migration','uiMjs']
+            const maxKeyLen = Object.keys(ast.config).reduce((max, key) => Math.max(max, key.length), 0)
+            for (const knownKey of knownKeys) {
+                if (ast.config[knownKey]) {
+                    sb.push(`  ${(knownKey + ':').padEnd(maxKeyLen + 1, ' ')} ${JSON.stringify(ast.config[knownKey])}`)
+                }
+            }
+            for (const key of Object.keys(ast.config).filter(k => !knownKeys.includes(k))) {
+                sb.push(`  ${(key + ':').padEnd(maxKeyLen + 1, ' ')} ${JSON.stringify(ast.config[key])},`)
+            }
+            sb.push(`}`)
+        }
+        if (sb.length) sb.push('')
 
         for (const cls of ast.enums ?? []) {
             sb.push(this.toEnum(cls))
@@ -109,6 +141,23 @@ export class TsdGenerator {
         const tsd = sb.join('\n')
         return tsd
     }
+}
+
+function sortAnnotations(annotations:ParsedAnnotation[]) {
+    // Sort by Prefix first in order ['Read.','Write.','Update.','Delete.']
+    // then Sort by length of name, then by name
+    const to = annotations.sort((x,y) => {
+        const prefix = ['Read.','Create.','Update.','Delete.','Write.']
+        const xPrefix = prefix.findIndex(p => x.name.startsWith(p))
+        const yPrefix = prefix.findIndex(p => y.name.startsWith(p))
+        if (xPrefix !== yPrefix) return xPrefix == -1 ? 1 : yPrefix == -1 ? -1 : xPrefix - yPrefix
+        if (x.name.length !== y.name.length) return x.name.length - y.name.length
+        if (x.name != y.name) return x.name.localeCompare(y.name)
+        if ((x.constructorArgs?.length ?? 0) > 0 && (y.constructorArgs?.length ?? 0) > 0) return x.constructorArgs[0].length - y.constructorArgs[0].length
+        if (x.constructorArgs?.length !== y.constructorArgs?.length) return (x.constructorArgs?.length ?? 0) - (y.constructorArgs?.length ?? 0)
+        return (x.args?.length ?? 0) - (y.args?.length ?? 0)
+    })
+    return to
 }
 
 export function toTsd(tsAst:ParseResult) {
