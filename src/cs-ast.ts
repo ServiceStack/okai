@@ -45,9 +45,6 @@ export class CSharpAst {
     decimalTypeProps = [
         "price","cost","amount","total","salary","balance","rate","discount","tax","fee"
     ]
-    currencyTypeProps = [
-        "price","cost","total","salary","balance","tax","fee"
-    ]
     valueTypes = [
         "int","long","short","ulong","ushort","sbyte","uint","char","byte","float","double","decimal","bool",
         "Int16","Int32","Int64","UInt16","UInt32","UInt64","SByte","Byte","Single","Double","Decimal","Boolean",
@@ -84,6 +81,7 @@ export class CSharpAst {
         'field',
         'tag',
         'notes',
+        'description',
 
         'meta',
         'dataContract',
@@ -102,6 +100,9 @@ export class CSharpAst {
 
         'meta',
         'dataContract',
+
+        'notes',
+        'description',
     ].map(x => x.toLowerCase())
     requestPropAttrs = [
         'validate',
@@ -200,8 +201,8 @@ export class CSharpAst {
 
     // Only generate these attributes when it's API specific, e.g. Read.notes("...")
     targetOnlyAttrs = [
-        'description',
         'notes',
+        'description',
     ].map(x => x.toLowerCase())
 
     // Ignore properties with these attributes on APIs
@@ -350,13 +351,6 @@ export class CSharpAst {
                 if (!prop.isValueType && !prop.type.endsWith('?')) {
                     prop.isRequired = true
                 }
-                if (this.currencyTypeProps.some(x => prop.name.toLowerCase().includes(x))) {
-                    if (!prop.attributes) prop.attributes = []
-                    prop.attributes.push({ 
-                        name: "IntlNumber",
-                        args: [{ name: "Currency", type: "constant", value: "NumberCurrency.USD" }]
-                    })
-                }
                 if (p.annotations?.length) {
                     prop.attributes = p.annotations.map(x => this.csharpAttribute(x))
                 }
@@ -368,6 +362,9 @@ export class CSharpAst {
         }
         if (cls.extends) {
             type.inherits = { name:this.toCsName(cls.extends) }
+        }
+        if (cls.implements?.length) {
+            type.implements = cls.implements.filter(x => !x.startsWith("IReturn")).map(x => this.csharpType(x))
         }
         if (cls.annotations?.length) {
             type.attributes = cls.annotations.map(x => this.csharpAttribute(x))
@@ -387,9 +384,44 @@ export class CSharpAst {
             }
         })
 
-        if (!this.result.types.find(x => x.name === cls.name && x.namespace === 'MyApp')) {
-            this.result.types.push(type)
+        if (isDataModel(type) || type.isEnum) {
+            if (!this.result.types.find(x => x.name === cls.name && x.namespace === 'MyApp')) {
+                this.result.types.push(type)
+            }
+        } else {
+            if (!this.result.operations.find(x => x.request.name === cls.name)) {
+                let method = "POST"
+                if (cls.extends?.startsWith('Query')) {
+                    method = "GET"
+                }
+                let impls = cls.implements
+                if (impls?.length) {
+                    if (impls.includes('ICreate')) {
+                        method = "POST"
+                    } else if (impls.includes('IUpdate')) {
+                        method = "PUT"
+                    } else if (impls.includes('IPatch')) {
+                        method = "PATCH"
+                    } else if (impls.includes('IDelete')) {
+                        method = "DELETE"
+                    }
+                }
+                const op:MetadataOperationType = {
+                    request:type,
+                    actions:["ANY"],
+                    method,
+                }
+                const iReturn = impls?.find(x => x.startsWith('IReturn<'))
+                if (iReturn) {
+                    op.returnType = this.csharpType(iReturn)
+                }
+                if (impls?.includes('IReturnVoid')) {
+                    op.returnsVoid = true
+                }
+                this.result.operations.push(op)
+            }
         }
+        
         return type
     }
 
@@ -507,11 +539,14 @@ export class CSharpAst {
         const friendlyGroupName = splitCase(groupName)
 
         for (const type of this.classes) {
+            if (!isDataModel(type)) continue
             const hasPk = type.properties?.some(x => x.isPrimaryKey)
             if (!hasPk) continue
             const pluralizedType = plural(type.name)
             const queryName = `Query${pluralizedType}`
-            let queryApi = this.result.operations.find(x => x.request.name === queryName) as MetadataOperationType
+            let queryApi = this.result.operations.find(x => x.request.name === queryName
+                || (x.request.inherits?.name.startsWith('Query') && x.request.inherits?.genericArgs?.some(a => a === type.name))
+            ) as MetadataOperationType
             const pk = type.properties?.find(x => x.isPrimaryKey)
             const dataModel = { name: type.name, namespace: type.name }
             const isAuditBase = type.inherits?.name === 'AuditBase'
@@ -588,7 +623,9 @@ export class CSharpAst {
                 this.result.operations.push(queryApi)
             }
             let createName = `Create${type.name}`
-            let createApi = this.result.operations.find(x => x.request.name === createName) as MetadataOperationType
+            let createApi = this.result.operations.find(x => x.request.name === createName
+                || (x.request.implements?.some(i => i.name.startsWith("ICreate") && x.dataModel == dataModel))
+            ) as MetadataOperationType
             if (!createApi) {
                 createApi = {
                     method: "POST",
@@ -662,7 +699,12 @@ export class CSharpAst {
                 this.result.operations.push(createApi)
             }
             let updateName = `Update${type.name}`
-            let updateApi = this.result.operations.find(x => x.request.name === updateName) as MetadataOperationType
+            let updateApi = this.result.operations.find(x => x.request.name === updateName
+                || x.dataModel == dataModel && (
+                    x.request.implements?.some(i => i.name.startsWith("IPatch")) ||
+                    x.request.implements?.some(i => i.name.startsWith("IUpdate"))
+                )
+            ) as MetadataOperationType
             if (!updateApi) {
                 updateApi = {
                     method: "PATCH",
@@ -716,7 +758,9 @@ export class CSharpAst {
                 this.result.operations.push(updateApi)
             }
             let deleteName = `Delete${type.name}`
-            let deleteApi = this.result.operations.find(x => x.request.name === deleteName) as MetadataOperationType
+            let deleteApi = this.result.operations.find(x => x.request.name === deleteName
+                || (x.request.implements?.some(i => i.name.startsWith("IDelete") && x.dataModel == dataModel))
+            ) as MetadataOperationType
             if (!deleteApi) {
                 deleteApi = {
                     method: "DELETE",
@@ -766,6 +810,7 @@ export class CSharpAst {
 
     filterModelAttributes() {
         for (const type of this.classes) {
+            if (!isDataModel(type)) continue
             if (type.attributes?.length) {
                 type.attributes = this.attrsFor("Model", "Type", type.attributes)
             }
@@ -1117,4 +1162,10 @@ export function replaceUserReferencesWithAuditTables(gen:CSharpAst) {
     }
     // Remove User Table
     gen.result.types = gen.result.types.filter(x => x.name !== 'User')
+}
+
+export function isDataModel(type:MetadataType) {
+    const apiInterfacePrefixes = ['IReturn','IQuery','ICreate','IUpdate','IPatch','IDelete','IGet','IPost','IPut']
+    return (!type.inherits || !type.inherits.name.startsWith("Query"))
+        && (!type.implements || !type.implements.some(x => apiInterfacePrefixes.some(prefix => x.name.startsWith(prefix))))
 }

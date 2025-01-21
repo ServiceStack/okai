@@ -191,7 +191,10 @@ export function refCount(t:MetadataType) {
 }
 
 export function getGroupName(ast:MetadataTypes) {
-    return plural(ast.types.sort((x,y) => refCount(y) - refCount(x))[0].name)
+    let types = ast.types.filter(x => !x.isEnum)
+    if (types.length == 0) types = ast.operations.map(x => x.request)
+    if (types.length == 0) return null
+    return plural(types.sort((x,y) => refCount(y) - refCount(x))[0].name)
 }
 
 export function tsdWithPrompt(tsd:string, prompt:string) {

@@ -4,7 +4,7 @@ import { pick, toCamelCase, toPascalCase } from "./utils.js"
 
 // Tranforms that are only applied once on AI TypeScript AST
 
-export function createTdAstFromAIAst(tsAst:ParseResult) {
+export function createTdAstFromAIAst(tsAst:ParseResult, gropName?:string) {
     mergeInterfacesAndClasses(tsAst)
     rewriteToPascalCase(tsAst)
     replaceReferences(tsAst)
@@ -14,6 +14,15 @@ export function createTdAstFromAIAst(tsAst:ParseResult) {
         // replaceUserRefs(cls)
         rewriteDuplicateTypePropNames(cls)
         rewriteSelfReferencingIds(cls)
+        convertToAuditBase(cls)
+        addCustomInputs(cls)
+
+        if (gropName) {
+            if (!cls.annotations) cls.annotations = []
+            if (!cls.annotations.some(x => x.name === 'tag')) {
+                cls.annotations.push({ name: 'tag', constructorArgs: [gropName] })
+            }
+        }
     })
     changeUserRefsToAuditBase(tsAst)
 
@@ -126,6 +135,21 @@ function rewriteSelfReferencingIds(type:ParsedClass) {
     }
 }
 
+export function addCustomInputs(cls:ParsedClass) {
+    const currencyTypeProps = [
+        "price","cost","total","salary","balance","tax","fee"
+    ]
+    for (const prop of cls.properties ?? []) {
+        if (currencyTypeProps.some(x => prop.name.toLowerCase().includes(x))) {
+            if (!prop.annotations) prop.annotations = []
+            prop.annotations.push({ 
+                name: "IntlNumber",
+                args: { Currency:"NumberCurrency.USD" }
+            })
+        }
+    }
+}
+
 function rewriteToPascalCase(ast:ParseResult) {
     ast?.classes.forEach(t => {
         t.name = toPascalCase(t.name)
@@ -137,6 +161,15 @@ function rewriteToPascalCase(ast:ParseResult) {
             m.name = toPascalCase(m.name)
         })
     })
+}
+
+function convertToAuditBase(cls:ParsedClass) {
+    const props = cls.properties ?? []
+    const auditFields = ['createdBy', 'updatedBy', 'createdAt', 'updatedAt', 'userId']
+    if (props.find(x => auditFields.includes(x.name))) {
+        cls.extends = 'AuditBase'
+        cls.properties = props.filter(x => !auditFields.includes(x.name))
+    }
 }
 
 function changeUserRefsToAuditBase(ast:ParseResult) {

@@ -1,4 +1,5 @@
 import { ParsedAnnotation, ParsedClass, ParsedEnum, ParsedInterface, ParseResult } from "./ts-parser.js"
+import { rightPart } from "./utils.js"
 
 export class TsdGenerator {
 
@@ -60,7 +61,8 @@ export class TsdGenerator {
             }
         }
         const extend = ast.extends ? ` extends ${ast.extends}` : ''
-        sb.push(`${this.typePrefix}${type} ${ast.name}${extend} {`)
+        const impls = (ast as ParsedClass).implements?.length ? ` implements ${(ast as ParsedClass).implements.join(', ')}` : ''
+        sb.push(`${this.typePrefix}${type} ${ast.name}${extend}${impls} {`)
         for (const prop of ast.properties) {
             if (prop.comment) {
                 sb.push(prop.comment.split('\n').map(x => `  // ${x}`).join('\n'))
@@ -144,17 +146,23 @@ export class TsdGenerator {
 }
 
 function sortAnnotations(annotations:ParsedAnnotation[]) {
-    // Sort by Prefix first in order ['Read.','Write.','Update.','Delete.']
-    // then Sort by length of name, then by name
     const to = annotations.sort((x,y) => {
         const prefix = ['Read.','Create.','Update.','Delete.','Write.']
         const xPrefix = prefix.findIndex(p => x.name.startsWith(p))
         const yPrefix = prefix.findIndex(p => y.name.startsWith(p))
+        // Sort by Prefix first in order ['Read.','Write.','Update.','Delete.']
         if (xPrefix !== yPrefix) return xPrefix == -1 ? 1 : yPrefix == -1 ? -1 : xPrefix - yPrefix
-        if (x.name.length !== y.name.length) return x.name.length - y.name.length
-        if (x.name != y.name) return x.name.localeCompare(y.name)
+        const xName = x.name.includes('.') ? rightPart(x.name, '.') : x.name
+        const yName = y.name.includes('.') ? rightPart(y.name, '.') : y.name
+        // then Sort by length of attr name
+        if (xName.length !== yName.length) return xName.length - yName.length
+        // then Sort by attr name
+        if (xName != yName) return xName.localeCompare(yName)
+        // then Sort by length of constructorArgs[0]
         if ((x.constructorArgs?.length ?? 0) > 0 && (y.constructorArgs?.length ?? 0) > 0) return x.constructorArgs[0].length - y.constructorArgs[0].length
+        // then Sort by constructorArgs.length
         if (x.constructorArgs?.length !== y.constructorArgs?.length) return (x.constructorArgs?.length ?? 0) - (y.constructorArgs?.length ?? 0)
+        // then Sort by args.length
         return (x.args?.length ?? 0) - (y.args?.length ?? 0)
     })
     return to

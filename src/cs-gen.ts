@@ -1,6 +1,6 @@
 import type { MetadataTypes, MetadataType, MetadataTypeName, MetadataAttribute, MetadataPropertyType } from "./types"
 import { unwrap } from "./cs-ast.js"
-import { leftPart } from "./utils.js"
+import { leftPart, rightPart } from "./utils.js"
 
 export class CSharpGenerator {
     namespaces: string[] = []
@@ -33,6 +33,29 @@ export class CSharpGenerator {
         return genericArgs?.length
             ? `${unwrap(leftPart(name,'`'))}<${genericArgs.join(',')}>` + (optional ? '?' : '')
             : name
+    }
+
+    sortAttributes(annotations:MetadataAttribute[]) {
+        const to = annotations.sort((x,y) => {
+            const prefix = ['Read.','Create.','Update.','Delete.','Write.']
+            const xPrefix = prefix.findIndex(p => x.name.startsWith(p))
+            const yPrefix = prefix.findIndex(p => y.name.startsWith(p))
+            // Sort by Prefix first in order ['Read.','Write.','Update.','Delete.']
+            if (xPrefix !== yPrefix) return xPrefix == -1 ? 1 : yPrefix == -1 ? -1 : xPrefix - yPrefix
+            const xName = x.name.includes('.') ? rightPart(x.name, '.') : x.name
+            const yName = y.name.includes('.') ? rightPart(y.name, '.') : y.name
+            // then Sort by length of attr name
+            if (xName.length !== yName.length) return xName.length - yName.length
+            // then Sort by attr name
+            if (xName != yName) return xName.localeCompare(yName)
+            // then Sort by length of constructorArgs[0]
+            if ((x.constructorArgs?.length ?? 0) > 0 && (y.constructorArgs?.length ?? 0) > 0) return x.constructorArgs[0].name.length - y.constructorArgs[0].name.length
+            // then Sort by constructorArgs.length
+            if (x.constructorArgs?.length !== y.constructorArgs?.length) return (x.constructorArgs?.length ?? 0) - (y.constructorArgs?.length ?? 0)
+            // then Sort by args.length
+            return (x.args?.length ?? 0) - (y.args?.length ?? 0)
+        })
+        return to
     }
 
     toAttribtue(attr:MetadataAttribute) {
@@ -73,14 +96,14 @@ export class CSharpGenerator {
             clsDef += ` : ${this.toTypeRef(cls.inherits)}`
         }
         if (cls.implements?.length) {
-            clsDef += (cls.inherits ? ', ' : ' : ') + `${cls.implements.map(this.toTypeRef).join(', ')}`
+            clsDef += (cls.inherits ? ', ' : ' : ') + `${cls.implements.map(x => this.toTypeRef(x)).join(', ')}`
         }
         if (showDesc && cls.description) {
             sb.push(`/// <summary>`)
             sb.push(`/// ${cls.description.replace(/\n/g, '\n/// ')}`)
             sb.push(`/// </summary>`)
         }
-        for (const attr of cls.attributes ?? []) {
+        for (const attr of this.sortAttributes(cls.attributes ?? [])) {
             if (opt?.hideAttrs?.includes(attr.name.toLowerCase())) continue
             const def = this.toAttribtue(attr)
             sb.push(`${def}`)
@@ -95,7 +118,7 @@ export class CSharpGenerator {
                 sb.push(`    /// ${prop.description.replace(/\n/g, '\n    /// ')}`)
                 sb.push(`    /// </summary>`)
             }
-            for (const attr of prop.attributes ?? []) {
+            for (const attr of this.sortAttributes(prop.attributes ?? [])) {
                 const def = this.toAttribtue(attr)
                 sb.push(`    ${def}`)
             }

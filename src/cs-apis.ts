@@ -1,5 +1,5 @@
-import type { MetadataTypes, MetadataTypeName, MetadataOperationType } from "./types"
-import { getGroupName } from "./utils.js"
+import type { MetadataTypes, MetadataTypeName, MetadataOperationType, MetadataAttribute } from "./types"
+import { getGroupName, rightPart } from "./utils.js"
 import { CSharpGenerator } from "./cs-gen.js"
 
 export class CSharpApiGenerator extends CSharpGenerator {
@@ -26,42 +26,52 @@ export class CSharpApiGenerator extends CSharpGenerator {
             }
         }
 
-        if (op.tags?.length) {
+        const attrs = cls.attributes ?? []
+        const hasTypeAttr = (name:string) => attrs.some(x => x.name === name)
+
+        if (op.tags?.length && !attrs.some(x => x.name === 'Tag')) {
             for (const tag of op.tags) {
-                sb.push(`[Tag("${tag}")]`)
+                attrs.push({ name:'Tag', constructorArgs:[{ name:'tag', type:'string', value:tag }] })
             }
         }
         if (op.requiredRoles?.length) {
             const adminRole = op.requiredRoles.includes('Admin')
-            if (adminRole && !this.typeHasAttr(op.request, 'ValidateIsAdmin')) {
-                sb.push(`[ValidateIsAdmin]`)
+            if (adminRole && !hasTypeAttr('ValidateIsAdmin')) {
+                attrs.push({ name:'ValidateIsAdmin' })
             }
             const roles = op.requiredRoles.filter(r => r !== 'Admin')
-            if (roles.length && !this.typeHasAttr(op.request, 'ValidateHasRole')) {
-                sb.push(`[ValidateHasRole("${roles[0]}")]`)
+            if (roles.length && !hasTypeAttr('ValidateHasRole')) {
+                attrs.push({ name:'ValidateHasRole', constructorArgs:[{ name:'role', type:'string', value:roles[0] }] })
             }
-        } else if (op.requiresAuth && !this.typeHasAttr(op.request, 'ValidateIsAuthenticated')) {
-            sb.push(`[ValidateIsAuthenticated]`)
+        } else if (op.requiresAuth && !(hasTypeAttr('ValidateIsAuthenticated') || hasTypeAttr('ValidateIsAdmin') || hasTypeAttr('ValidateHasRole'))
+        ) {
+            attrs.push({ name:'ValidateIsAuthenticated' })
         }
-        if (cls.description && !this.typeHasAttr(op.request, 'Api')) {
-            sb.push(`[Api("${cls.description}")]`)
+        if (cls.description && !hasTypeAttr('Api')) {
+            attrs.push({ name:'Api', constructorArgs:[{ name:'description', type:'string', value:cls.description }] })
         }
-        for (const attr of cls.attributes ?? []) {
-            sb.push(this.toAttribtue(attr))
-        }
-        if (op.routes?.length) {
+        if (op.routes?.length && !attrs.some(x => x.name === 'Route')) {
             for (const route of op.routes) {
-                sb.push(`[Route("${route.path}", "${route.verbs ?? "POST"}")]`)
+                attrs.push({ name:'Route', constructorArgs:[
+                    { name:'path', type:'string', value:route.path },
+                    { name:'verbs', type:'string', value:route.verbs ?? "POST" }
+                ] })
             }
+        }
+
+        for (const attr of this.sortAttributes(attrs)) {
+            sb.push(this.toAttribtue(attr))
         }
         
         sb.push(clsDef)
         sb.push('{')
-        for (const prop of cls.properties!) {
+        for (const prop of cls.properties!) {            
+            const hasPropAttr = (name:string) => prop.attributes?.some(x => x.name === name)
+            const attrs = prop.attributes ?? []
             this.addNamespace(prop.namespace)
-            if (prop.description && !this.propHasAttr(prop, 'ApiMember')) {
+            if (prop.description && !hasPropAttr('ApiMember')) {
                 if (!prop.description.includes('\n')) {
-                    sb.push(`    [ApiMember(Description="${prop.description.replace(/"/g, '\\"')}")]`)
+                    attrs.push({ name:'ApiMember', args:[{ name:'Description', type:'string', value:prop.description.replace(/"/g, '\\"') }] })
                 } else {
                     sb.push(`    [ApiMember(Description=\n` +
                             `    """\n` +
@@ -69,7 +79,7 @@ export class CSharpApiGenerator extends CSharpGenerator {
                             `    """)]`)
                 }
             }
-            for (const attr of prop.attributes ?? []) {
+            for (const attr of this.sortAttributes(attrs)) {    
                 const def = this.toAttribtue(attr)
                 sb.push(`    ${def}`)
             }

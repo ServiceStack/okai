@@ -74,8 +74,8 @@ export class TypeScriptParser {
     private static readonly CONFIG_TYPE_PATTERN = /export\s+type\s+Config\s*=\s*{([^}]+)}/
     private static readonly CONFIG_PROPERTY_PATTERN = /(\w+)\s*:\s*("[^"]*"|'[^']*')/g
     private static readonly DEFAULT_EXPORT_PATTERN = /export\s+default\s+({[^}]+})/
-    private static readonly CLASS_PATTERN = /class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([\w,\s]+))?\s*{/g
-    private static readonly INTERFACE_PATTERN = /interface\s+(\w+)(?:\s+extends\s+(\w+))?\s*{/g
+    private static readonly CLASS_PATTERN = /class\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?(?:\s+implements\s+([\w\s<>,]+))?\s*{/gm
+    private static readonly INTERFACE_PATTERN = /interface\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?\s*{/gm
     private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/g
     private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>[\w<>[\],\s]+)(?<union>\|\s*[\w<>[\],|,\s]+)?\s*;?/
     private static readonly ENUM_MEMBER_PATTERN = /(\w+)\s*(?:=\s*("[^"]*"|'[^']*'|\d+|[^,\n]+))?\s*/
@@ -166,7 +166,7 @@ export class TypeScriptParser {
         const annotations: ParsedAnnotation[] = []
         const commments: string[] = []
         const ANNOTATION = TypeScriptParser.ANNOTATION_PATTERN
-        let previousLine = this.getPreviousLine(body, body.indexOf(line))
+        let previousLine = this.getPreviousLine(body, body.lastIndexOf(line))
         while (previousLine && (!previousLine.match(TypeScriptParser.PROPERTY_PATTERN) || previousLine.match(ANNOTATION))) {
             const annotation = previousLine.match(ANNOTATION) ? parseAnnotation(previousLine) : undefined
             if (annotation) {
@@ -177,7 +177,7 @@ export class TypeScriptParser {
                     commments.unshift(comment)
                 }
             }
-            previousLine = this.getPreviousLine(body, body.indexOf(previousLine))
+            previousLine = this.getPreviousLine(body, body.lastIndexOf(previousLine))
         }
         const lineComment = this.getLineComment(line)
         if (lineComment) {
@@ -295,20 +295,26 @@ export class TypeScriptParser {
                 name: match[1],
                 properties: this.parseClassProperties(body),
             }
-            if (match[2]) {
-                cls.extends = match[2]
+            const inherits = splitTypes(match[2])
+            if (inherits.length) {
+                cls.extends = inherits[0]
+                if (inherits.length > 1) {
+                    cls.implements = inherits.slice(1)
+                }
             }
-            const impls = match[3]?.split(',').map(i => i.trim())
-            if (impls) {
-                cls.implements = impls
+            const impls = splitTypes(match[3])
+            if (impls.length) {
+                if (!cls.implements) cls.implements = []
+                cls.implements.push(...impls)
             }
 
             if (previousLine) {
-                const { comment, annotations } = this.parseMetadata(content, previousLine)
+                const { comment, annotations } = this.parseMetadata(content.substring(0, match.index), previousLine)
                 if (comment) cls.comment = comment
                 if (annotations) cls.annotations = annotations
             }
 
+            // console.log('cls', cls.name, previousLine, cls.annotations)
             this.classes.push(cls)
         }
     }
@@ -487,4 +493,40 @@ function splitArgs(str: string) {
     }
     if (current.trim()) args.push(current.trim())
     return args
+}
+
+export function splitTypes(input: string): string[] {
+    const result: string[] = []
+    let currentToken = ''
+    let angleBracketCount = 0
+    
+    // Trim and handle empty input
+    input = input?.trim()
+    if (!input) return []
+    
+    // Process each character
+    for (let char of input) {
+        if (char === '<') {
+            angleBracketCount++
+            currentToken += char;
+        } else if (char === '>') {
+            angleBracketCount--
+            currentToken += char
+        } else if (char === ',' && angleBracketCount === 0) {
+            // Only split on commas when we're not inside angle brackets
+            if (currentToken.trim()) {
+                result.push(currentToken.trim())
+            }
+            currentToken = ''
+        } else {
+            currentToken += char;
+        }
+    }
+    
+    // Add the last token if it exists
+    if (currentToken.trim()) {
+        result.push(currentToken.trim())
+    }
+    
+    return result
 }

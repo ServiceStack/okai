@@ -269,6 +269,7 @@ Options:
     }
     
     let tsd = `
+      @tag("${groupName}")
       export class ${model} {
         id:number
         name:string
