@@ -227,7 +227,19 @@ export class TypeScriptParser {
                     }
                 }
 
-                const { comment, annotations } = this.parseMetadata(classBody, line)
+                let startIndex = index
+                for (let i = index - 1; i >= 0; i--) {
+                    const prevLine = lines[i].trim()
+                    if (this.isComment(prevLine) || this.isAnnotation(prevLine)) {
+                        startIndex = i
+                    } else {
+                        if (prevLine != '') break
+                    }
+                }
+
+                const propMetadata = startIndex < index ? lines.slice(startIndex, index + 1).join('\n') : line
+                // console.log('\npropMetadata <!--', propMetadata, '-->\n')
+                const { comment, annotations } = this.parseMetadata(propMetadata, line)
                 if (comment) member.comment = comment
                 if (annotations) member.annotations = annotations
                 // console.log('member', { comment, annotations, line })
@@ -366,6 +378,12 @@ export class TypeScriptParser {
         })
 
         return members
+    }
+
+    isAnnotation(s?:string) {
+        if (!s) return false
+        s = s.trim()
+        return s.startsWith('@')
     }
 
     isComment(s?:string) {
