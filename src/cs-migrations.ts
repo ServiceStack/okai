@@ -1,6 +1,7 @@
 import type { MetadataPropertyType, MetadataTypes } from "./types"
 import { CSharpGenerator } from "./cs-gen.js"
 import { indentLines } from "./utils.js"
+import { unwrap } from "./cs-ast.js"
 
 export class CSharpMigrationGenerator extends CSharpGenerator {
 
@@ -59,9 +60,9 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
                     if (prop.attributes?.some(x => x.name === 'Reference')) {
                         typeDeps[type.name] = typeDeps[type.name] || []
                         if (prop.genericArgs?.[0]) {
-                            typeDeps[type.name].push(...prop.genericArgs)
+                            typeDeps[type.name].push(...prop.genericArgs.map(unwrap))
                         } else {
-                            typeDeps[type.name].push(prop.type)
+                            typeDeps[type.name].push(unwrap(prop.type))
                         }
                     }
                 }
@@ -88,8 +89,9 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
         }
         // console.log('orderedTypes:', orderedTypes)
         tableClasses.forEach(type => {
-            if (!orderedTypes.includes(type.name)) {
-                orderedTypes.push(type.name)
+            const typeName = unwrap(type.name)
+            if (!orderedTypes.includes(typeName)) {
+                orderedTypes.push(typeName)
             }
         })
 

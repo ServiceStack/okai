@@ -3,7 +3,7 @@ import type {
     MetadataAttribute, MetadataTypeName, MetadataOperationType,
 } from "./types"
 import { ParsedAnnotation, ParsedClass, ParsedEnum, ParseResult } from "./ts-parser.js"
-import { getGroupName, leftPart, plural, rightPart, splitCase, toPascalCase } from "./utils.js"
+import { getGroupName, lastLeftPart, leftPart, plural, rightPart, splitCase, toPascalCase } from "./utils.js"
 import { getIcon } from "./icons.js"
 
 const sys = (name:string, genericArgs?:string[]) => ({ name, namespace: "System", genericArgs })
@@ -413,7 +413,7 @@ export class CSharpAst {
                 }
                 const iReturn = impls?.find(x => x.startsWith('IReturn<'))
                 if (iReturn) {
-                    op.returnType = this.csharpType(iReturn)
+                    op.returnType = this.csharpType(lastLeftPart(rightPart(iReturn,'<'), '>'))
                 }
                 if (impls?.includes('IReturnVoid')) {
                     op.returnsVoid = true
