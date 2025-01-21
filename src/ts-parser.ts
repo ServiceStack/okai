@@ -76,7 +76,7 @@ export class TypeScriptParser {
     private static readonly DEFAULT_EXPORT_PATTERN = /export\s+default\s+({[^}]+})/
     private static readonly CLASS_PATTERN = /class\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?(?:\s+implements\s+([\w\s<>,]+))?\s*{/gm
     private static readonly INTERFACE_PATTERN = /interface\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?\s*{/gm
-    private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/g
+    private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/gm
     private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>[\w<>[\],\s]+)(?<union>\|\s*[\w<>[\],|,\s]+)?\s*;?/
     private static readonly ENUM_MEMBER_PATTERN = /(\w+)\s*(?:=\s*("[^"]*"|'[^']*'|\d+|[^,\n]+))?\s*/
     public static readonly ANNOTATION_PATTERN = /^\s*@([A-Za-z_][A-Za-z0-9_]*\.?[A-Za-z_]?[A-Za-z0-9_]*)/
@@ -346,10 +346,11 @@ export class TypeScriptParser {
                     const cleanValue = value.trim().replace(/^["'`]|["'`]$/g, '')
                     member.value = isNaN(Number(cleanValue)) ? cleanValue : Number(cleanValue)
                 } else {
-                    member.value = prevIntValue + 1
+                    member.value = prevIntValue
                 }
                 if (typeof member.value === 'number') {
                     prevIntValue = member.value
+                    prevIntValue++
                 }
 
                 const previousLine = this.getPreviousLine(enumBody, enumBody.indexOf(line))

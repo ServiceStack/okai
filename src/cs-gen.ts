@@ -146,6 +146,8 @@ export class CSharpGenerator {
         sb.push('{')
        
         if (enumType.enumNames?.length) {
+            const usesDefaultValues = enumType.enumValues?.length == enumType.enumNames.length 
+                && enumType.enumValues.every((x,i) => x === i.toString())
             for (let i = 0; i < enumType.enumNames.length; i++) {
                 const name = enumType.enumNames[i]
                 let value = enumType.enumValues?.[i]
@@ -162,7 +164,7 @@ export class CSharpGenerator {
                     sb.push(`    [EnumMember(Value = ${this.toQuotedString(memberValue)})]`)
                 }
 
-                sb.push(value
+                sb.push(value && !usesDefaultValues
                     ? `    ${name} = ${value},`
                     : `    ${name},`)
             }

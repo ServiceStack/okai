@@ -94,7 +94,7 @@ export class TsdGenerator {
                 ? allStringValuesMatch
                     ? `` 
                     : ` = ${member.value}`
-                : member.value !== (i+1) ? ` = ${member.value}` : ''
+                : member.value !== i ? ` = ${member.value}` : ''
             sb.push(`  ${member.name}${value},`)
         }
         sb.push('}')
