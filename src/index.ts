@@ -31,7 +31,6 @@ type Command = {
   add?:       string
   accept?:    string
   init?:      string
-  chat?:      string
   info?:      ProjectInfo
 }
 
@@ -120,12 +119,11 @@ function parseArgs(...args: string[]) : Command {
       }
     } else if (arg == "chat") {
       ret.type = "chat"
-      ret.chat = args[++i]
     } else if (arg.endsWith('.d.ts')) {
       if (ret.type == "help") ret.type = "update"
       ret.tsdFile = arg
     } else {
-      ret.type = "prompt"
+      if (ret.type == "help") ret.type = "prompt"
       if (ret.prompt) {
         ret.prompt += ' '
       }
@@ -479,7 +477,7 @@ Options:
     try {
       const url = new URL('/chat', command.baseUrl)
       const formData = new FormData()
-      formData.append('prompt', command.chat)
+      formData.append('prompt', command.prompt)
       if (command.system) {
         formData.append('system', command.system)
       }
