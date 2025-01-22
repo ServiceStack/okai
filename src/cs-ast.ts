@@ -229,6 +229,9 @@ export class CSharpAst {
 
     ignoreReadValidators = this.requestPropAttrs.filter(x => x.startsWith('validate')).map(x => x.toLowerCase())
     ignoreDeleteValidators = this.requestPropAttrs.filter(x => x.startsWith('validate')).map(x => x.toLowerCase())
+    ignoreApisFor = [
+        'User',
+    ]
 
     isEnum(type:string) {
         type = unwrap(type)
@@ -540,6 +543,7 @@ export class CSharpAst {
 
         for (const type of this.classes) {
             if (!isDataModel(type)) continue
+            if (this.ignoreApisFor.includes(type.name)) continue
             const hasPk = type.properties?.some(x => x.isPrimaryKey)
             if (!hasPk) continue
             const pluralizedType = plural(type.name)

@@ -23,6 +23,9 @@ export default {
 }
 */
 export class UiMjsGroupGenerator {
+    ignore = [
+        'User',
+    ]
     generate(ast:MetadataTypes, groupLabel?:string) {
         if (!groupLabel) {
             const groupName = getGroupName(ast)
@@ -32,7 +35,7 @@ export class UiMjsGroupGenerator {
             `export default {`,
             `    group: "${groupLabel}",`,
             `    items: {`,
-                ...ast.types.filter(x => !x.isEnum && !x.isInterface).map(x => {
+                ...ast.types.filter(x => !x.isEnum && !x.isInterface && !this.ignore.includes(x.name)).map(x => {
                     return [
                         `        ${plural(x.name)}: {`,
                         `            type: '${x.name}',`,
