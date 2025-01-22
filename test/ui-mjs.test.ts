@@ -18,10 +18,18 @@ describe('UI mjs tests', () => {
 
         const uiGen = new UiMjsGroupGenerator()
         const ui = uiGen.generate(csAst)
+        // console.log(ui)
 
         expect(ui).toEqual(`export default {
     group: "Jobs",
     items: {
+        Companies: {
+            type: 'Company',
+            component: {
+                template:\`<AutoQueryGrid :type="type"
+                    selected-columns="id,name,description,website" />\`,
+            },
+        },
         Jobs: {
             type: 'Job',
             component: {
@@ -50,15 +58,9 @@ describe('UI mjs tests', () => {
                     selected-columns="id,jobApplicantId,scheduledAt,conductedAt,result" />\`,
             },
         },
-        Companies: {
-            type: 'Company',
-            component: {
-                template:\`<AutoQueryGrid :type="type"
-                    selected-columns="id,name,description,website" />\`,
-            },
-        },
     }
 }`)
+
     })
 
     it('Does generate UI Index', () => {
