@@ -80,10 +80,10 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
             const deps = typeDeps[type] ?? []
             for (const dep of deps) {
                 if (!orderedTypes.includes(dep)) {
-                    addDepTypes(dep,orderedTypes)
                     if (!orderedTypes.includes(dep)) {
                         orderedTypes.push(dep)
                     }
+                    addDepTypes(dep,orderedTypes)
                 }
             }
         }

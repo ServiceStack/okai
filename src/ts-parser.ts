@@ -401,7 +401,9 @@ export class TypeScriptParser {
 
         while ((match = TypeScriptParser.ENUM_PATTERN.exec(content))) {
             const previousLine = this.getPreviousLine(content, match.index)
-            const { comment, annotations } = this.parseMetadata(content.substring(0, match.index), previousLine)
+            const { comment, annotations } = previousLine 
+                ? this.parseMetadata(content.substring(0, match.index), previousLine)
+                : { comment: undefined, annotations: undefined }
 
             this.enums.push({
                 name: match[1],

@@ -3,7 +3,7 @@ import fs from "fs"
 import path from "path"
 import blessed from 'blessed'
 import { projectInfo } from './info.js'
-import { parseTsdHeader, toTsdHeader, leftPart, replaceMyApp, trimStart, toPascalCase, plural } from "./utils.js"
+import { leftPart, replaceMyApp, trimStart, toPascalCase, plural } from "./utils.js"
 import { generateCsAstFromTsd, toAst, astForProject } from "./ts-ast.js"
 import { CSharpApiGenerator } from "./cs-apis.js"
 import { CSharpMigrationGenerator } from "./cs-migrations.js"
@@ -419,7 +419,8 @@ Options:
 
     if (command.verbose) console.log(`Removing: ${tsdPath}...`)
     const tsdContent = fs.readFileSync(tsdPath, 'utf-8')
-    const header = parseTsdHeader(tsdContent)
+    const ast = toAst(tsdContent)
+    const header = ast.config
     if (command.verbose) console.log(JSON.stringify(header, undefined, 2))
 
     if (header?.migration) {
