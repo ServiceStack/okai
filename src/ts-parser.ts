@@ -1,4 +1,4 @@
-import { lastLeftPart, lastRightPart, leftPart, rightPart, trimEnd } from "./utils.js"
+import { lastLeftPart, lastRightPart, leftPart, rightPart, trimEnd, trimStart } from "./utils.js"
 
 export interface ParsedConfig {
     prompt?: string
@@ -110,6 +110,10 @@ export class TypeScriptParser {
         const multiLineMatch = line.match(/.*?\/\*\s*(.+?)\s*\*\//);
         if (multiLineMatch) {
             return multiLineMatch[1].trim()
+        }
+        line = line.trim()
+        if (line.startsWith('/*') || line.startsWith('*')) {
+            return trimStart(trimStart(trimStart(line, '/'),'*'),'/').trim()
         }
 
         return undefined
@@ -389,7 +393,7 @@ export class TypeScriptParser {
     isComment(s?:string) {
         if (!s) return false
         s = s.trim()
-        return s.startsWith('//') || s.startsWith('/*')
+        return s.startsWith('//') || s.startsWith('/*') || s.startsWith('*')
     }
 
     private parseEnums(content: string): void {
@@ -397,9 +401,11 @@ export class TypeScriptParser {
 
         while ((match = TypeScriptParser.ENUM_PATTERN.exec(content))) {
             const previousLine = this.getPreviousLine(content, match.index)
+            const { comment, annotations } = this.parseMetadata(content.substring(0, match.index), previousLine)
+
             this.enums.push({
                 name: match[1],
-                comment: previousLine ? this.getLineComment(previousLine) : undefined,
+                comment: previousLine ? comment : undefined,
                 members: this.parseEnumMembers(match[2])
             })
         }

@@ -157,9 +157,13 @@ function rewriteToPascalCase(ast:ParseResult) {
     })
     ast.enums?.forEach(e => {
         e.name = toPascalCase(e.name)
-        e.members?.forEach(m => {
-            m.name = toPascalCase(m.name)
-        })
+        if (e.members?.length) {
+            e.members?.forEach((m,i) => {
+                // always reset the value of AI enums
+                m.value = i
+                m.name = toPascalCase(m.name)            
+            })
+        }
     })
 }
 
