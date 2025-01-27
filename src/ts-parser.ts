@@ -77,7 +77,7 @@ export class TypeScriptParser {
     private static readonly CLASS_PATTERN = /class\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?(?:\s+implements\s+([\w\s<>,]+))?\s*{/gm
     private static readonly INTERFACE_PATTERN = /interface\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?\s*{/gm
     private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/gm
-    private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>[\w<>[\],\s]+)(?<union>\|\s*[\w<>[\],|,\s]+)?\s*;?/
+    private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>['"\w<>|[\],\s]+)?\s*;?/
     private static readonly ENUM_MEMBER_PATTERN = /(\w+)\s*(?:=\s*("[^"]*"|'[^']*'|\d+|[^,\n]+))?\s*/
     public static readonly ANNOTATION_PATTERN = /^\s*@([A-Za-z_][A-Za-z0-9_]*\.?[A-Za-z_]?[A-Za-z0-9_]*)/
     public static readonly ANNOTATION_COMMENT = /\)[\s]*\/\/.*$/
@@ -221,13 +221,18 @@ export class TypeScriptParser {
                     return
                 }
 
-                const union = match.groups.union
-                    ? match.groups.union.split('|').filter(x => x.trim()).map((u: string) => u.trim())
-                    : undefined
-                if (union) {
-                    member.union = union
-                    if (union.includes('null') || union.includes('undefined')) {
-                        member.optional = true
+                if (member.type.startsWith('"') || member.type.startsWith("'") || member.type.startsWith("`")) {
+                    member.type = 'string'
+                }  else if (member.type.startsWith('{')) {
+                    member.type = 'any'
+                } else if (member.type.includes('|')) {                    
+                    const { baseType, unionTypes } = extractTypeComponents(member.type)
+                    member.type = baseType
+                    if (unionTypes.length) {
+                        member.union = unionTypes
+                        if (unionTypes.includes('null') || unionTypes.includes('undefined')) {
+                            member.optional = true
+                        }
                     }
                 }
 
@@ -282,11 +287,11 @@ export class TypeScriptParser {
             const body = this.getBlockBody(content, match.index)
 
             const cls: ParsedClass = {
-                name: match[1],
+                name: match[1].trim(),
                 properties: this.parseClassProperties(body),
             }
             if (match[2]) {
-                cls.extends = match[2]
+                cls.extends = match[2].trim()
             }
 
             if (previousLine) {
@@ -556,4 +561,83 @@ export function splitTypes(input: string): string[] {
     }
     
     return result
+}
+
+export type ExtractUnionType<T> = T extends any 
+    ? [T] extends [UnionToIntersection<T>] 
+        ? never 
+        : T 
+    : never
+
+type UnionToIntersection<U> = 
+    (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) 
+        ? I 
+        : never
+
+export function extractTypeComponents(typeStr: string): {
+    baseType: string
+    unionTypes: string[]
+} {
+    const types = splitUnionTypes(typeStr)
+    const cleanTypes = types.map(t => t.trim())
+    
+    // Handle generic types
+    if (hasGenericType(typeStr)) {
+        const { containerType, typeParams } = parseGenericType(typeStr)
+        const extractedParams = typeParams.map(param => extractTypeComponents(param))
+        
+        return {
+            baseType: `${containerType}<${extractedParams[0].baseType}>`,
+            unionTypes: extractedParams.flatMap(p => p.unionTypes)
+        }
+    }
+
+    // Find primary type (non-null, non-undefined)
+    const baseType = cleanTypes.find(t => !isNullableType(t)) || cleanTypes[0]
+    const unionTypes = cleanTypes.filter(t => t !== baseType)
+
+    return { baseType, unionTypes }
+}
+
+function splitUnionTypes(typeStr: string): string[] {
+    let depth = 0
+    let current = ''
+    const result: string[] = []
+
+    for (const char of typeStr) {
+        if (char === '<') depth++
+        if (char === '>') depth--
+        
+        if (char === '|' && depth === 0) {
+            result.push(current.trim())
+            current = ''
+        } else {
+            current += char
+        }
+    }
+    
+    if (current) result.push(current.trim())
+    return result
+}
+
+function hasGenericType(typeStr: string): boolean {
+    return typeStr.includes('<') && typeStr.includes('>')
+}
+
+function parseGenericType(typeStr: string): {
+    containerType: string
+    typeParams: string[]
+} {
+    const match = typeStr.match(/^([^<]+)<(.+)>$/)
+    if (!match) throw new Error('Invalid generic type format')
+    
+    const containerType = match[1]
+    const paramStr = match[2]
+    const typeParams = splitUnionTypes(paramStr)
+
+    return { containerType, typeParams }
+}
+
+function isNullableType(type: string): boolean {
+    return type === 'null' || type === 'undefined'
 }

@@ -22,6 +22,7 @@ export class CSharpAst {
         "undefined":sys("string"),
         "bigint":sys("long"),
         "any":sysObj,
+        "Record":sys("Dictionary"),
         "ArrayBuffer":sys("byte[]"),
         "SharedArrayBuffer":sys("byte[]"),
         "Int8Array":sys("sbyte[]"),

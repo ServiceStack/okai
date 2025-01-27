@@ -13,11 +13,20 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
             'ServiceStack.OrmLite',
             ...ast.namespaces
         ]))
+
+        const ignoreTables = ['User']
+
         // props with [Reference] attribute don't need to be included in the migration (ignore to avoid missing references e.g. User)
         const ignoreProp = (prop:MetadataPropertyType) => prop.attributes?.some(x => x.name === 'Reference')
         const hideAttrs = ['description','icon']
         const opt = { hideAttrs, ignoreProp }
-        this.classes = ast.types.filter(t => !t.isEnum && !t.isInterface).map(x => this.toClass(x, opt))
+        const genTypes = ast.types.filter(t => 
+            !t.isEnum && 
+            !t.isInterface && 
+            !ignoreTables.includes(t.name) && 
+            !(t.inherits?.name && ignoreTables.includes(t.inherits.name))
+        )
+        this.classes = genTypes.map(x => this.toClass(x, opt))
         this.enums = ast.types.filter(t => t.isEnum).map(x => this.toEnum(x, opt))
         
         const sb:string[] = []
@@ -55,6 +64,9 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
             && (!x.genericArgs || x.genericArgs.length === 0)
             && x.properties?.some(x => x.isPrimaryKey))
         for (const type of tableClasses) {
+            if (type.inherits?.name && ignoreTables.includes(type.inherits.name)) {
+                ignoreTables.push(type.inherits.name)
+            }
             if (type.properties) {
                 for (const prop of type.properties) {
                     if (prop.attributes?.some(x => x.name === 'Reference')) {
@@ -94,8 +106,6 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
                 orderedTypes.push(typeName)
             }
         })
-
-        const ignoreTables = ['User']
 
         sb.push('    public override void Up()')
         sb.push('    {')

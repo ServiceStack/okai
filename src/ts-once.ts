@@ -29,33 +29,6 @@ export function createTdAstFromAIAst(tsAst:ParseResult, gropName?:string) {
     return tsAst
 }
 
-/*
-function replaceUserRefs(type:ParsedClass) {
-    type.name = toPascalCase(type.name)
-    type.properties?.forEach(prop => {
-        prop.name = toCamelCase(prop.name)
-        if (prop.type === 'User' || prop.name === 'userId') {
-            type.extends = 'AuditBase'
-        }
-
-        if (prop.type.startsWith('Array<')) {
-            const elType = prop.type.slice('Array<'.length, -1)
-            prop.type = elType + '[]'
-        }
-        if (prop.type === 'User') {
-            prop.name = 'userId'
-            prop.type = 'string'
-        }
-        if (prop.type === 'User[]') {
-            if (prop.name.endsWith('s')) {
-                prop.name = prop.name.slice(0, -1) + 'Ids'
-            }
-            prop.type = 'string[]'
-        }        
-    })
-}
-*/
-
 // Replace User Tables and FKs with AuditBase tables and 
 export function transformUserRefs(tsAst:ParseResult, info:ProjectInfo) {
     const addClasses = []
