@@ -270,3 +270,12 @@ export function createError(errorCode:string, message:string, fieldName?:string)
         })
     })
 }
+
+export function isBinary(contentType:string) {
+    return contentType && !contentType.endsWith('+xml') &&
+        (contentType.startsWith('image/')
+        || contentType.startsWith('video/')
+        || contentType.startsWith('audio/')
+        || contentType.endsWith('octet-stream')
+        || contentType.endsWith('compressed'))
+}

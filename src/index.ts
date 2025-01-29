@@ -131,7 +131,7 @@ function parseArgs(...args: string[]) : Command {
     }
   }
 
-  if (ret.type === "prompt") {
+  if (ret.type === "prompt" || ret.type === "chat") {
     if (!ret.cached && process.env.OKAI_CACHED) {
       ret.cached = true
     }
@@ -213,6 +213,55 @@ Options:
     return
   }
 
+  if (command.type === "list") {
+    if (command.list == "models") {
+      const url = new URL('/models/list', command.baseUrl)
+      if (command.verbose) console.log(`GET: ${url}`)
+      const res = await fetch(url)
+      if (!res.ok) {
+        console.log(`Failed to fetch models: ${res.statusText}`)
+        process.exit(1)
+      }
+      const models = await res.text()
+      console.log(models)
+      process.exit(0)
+    }
+  }
+
+  if (command.type === "chat") {
+    try {
+      const url = new URL('/chat', command.baseUrl)
+      const formData = new FormData()
+      formData.append('prompt', command.prompt)
+      if (command.system) {
+        formData.append('system', command.system)
+      }
+      if (command.models) {
+        formData.append('model', command.models)
+        if (command.license) {
+          formData.append('license', command.license)
+        }
+      }
+      if (command.verbose) console.log(`POST: ${url}`)
+      const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        console.log(`Failed to chat: ${res.statusText}`)
+        process.exit(1)
+      }
+      const response = await res.json()
+      if (command.verbose) console.log(JSON.stringify(response, undefined, 2))
+      const content = response.choices[response.choices.length - 1]?.message?.content
+      console.log(content)
+    } catch (err) {
+      console.error(err)
+    }
+    process.exit(0)
+  }
+
+  // Requires running in context of ServiceStack App
   const info = command.info = projectInfo(process.cwd())
   if (!info) {
     if (!info) {
@@ -236,21 +285,6 @@ Options:
   
   if (command.ignoreSsl) {
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"        
-  }
-
-  if (command.type === "list") {
-    if (command.list == "models") {
-      const url = new URL('/models/list', command.baseUrl)
-      if (command.verbose) console.log(`GET: ${url}`)
-      const res = await fetch(url)
-      if (!res.ok) {
-        console.log(`Failed to fetch models: ${res.statusText}`)
-        process.exit(1)
-      }
-      const models = await res.text()
-      console.log(models)
-      process.exit(0)
-    }
   }
 
   if (command.type == "init" && command.info) {
@@ -471,39 +505,6 @@ Options:
 
   if (command.type == "accept") {
     await acceptGist(command, command.accept)
-    process.exit(0)
-  }
-
-  if (command.type === "chat") {
-    try {
-      const url = new URL('/chat', command.baseUrl)
-      const formData = new FormData()
-      formData.append('prompt', command.prompt)
-      if (command.system) {
-        formData.append('system', command.system)
-      }
-      if (command.models) {
-        formData.append('model', command.models)
-        if (command.license) {
-          formData.append('license', command.license)
-        }
-      }
-      if (command.verbose) console.log(`POST: ${url}`)
-      const res = await fetch(url, {
-        method: 'POST',
-        body: formData,
-      })
-      if (!res.ok) {
-        console.log(`Failed to chat: ${res.statusText}`)
-        process.exit(1)
-      }
-      const response = await res.json()
-      if (command.verbose) console.log(JSON.stringify(response, undefined, 2))
-      const content = response.choices[response.choices.length - 1]?.message?.content
-      console.log(content)
-    } catch (err) {
-      console.error(err)
-    }
     process.exit(0)
   }
 
