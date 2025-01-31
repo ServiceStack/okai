@@ -12,6 +12,7 @@ export function createTdAstFromAIAst(tsAst:ParseResult, gropName?:string) {
 
     tsAst.classes.forEach(cls => {
         // replaceUserRefs(cls)
+        replaceUserBaseClass(cls)
         rewriteDuplicateTypePropNames(cls)
         rewriteSelfReferencingIds(cls)
         convertToAuditBase(cls)
@@ -90,6 +91,17 @@ export function transformUserRefs(tsAst:ParseResult, info:ProjectInfo) {
     }
 }
 
+function replaceUserBaseClass(type:ParsedClass) {
+    if (type.extends === 'User') {
+        type.extends = 'AuditBase'
+        let idProp:ParsedProperty = type.properties?.find(x => x.name.toLowerCase() === 'id')
+        if (!idProp) {
+            idProp = { name: 'id', type: 'number' } 
+            type.properties?.unshift(idProp)
+        }
+    }
+}
+
 function rewriteDuplicateTypePropNames(type:ParsedClass) {
     const duplicateTypePropMap : Record<string,string> = {
         note: 'content',
@@ -116,8 +128,8 @@ export function addCustomInputs(cls:ParsedClass) {
         if (currencyTypeProps.some(x => prop.name.toLowerCase().includes(x))) {
             if (!prop.annotations) prop.annotations = []
             prop.annotations.push({ 
-                name: "IntlNumber",
-                args: { Currency:"NumberCurrency.USD" }
+                name: "intlNumber",
+                args: { currency:"USD" }
             })
         }
     }

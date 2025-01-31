@@ -811,17 +811,7 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
   const apiFile = path.join(import.meta.dirname, 'api.d.ts')
   fs.writeFileSync(apiTypesPath, fs.readFileSync(apiFile, 'utf-8'))
 
-  let uiFileName = null
-  if (info.uiMjsDir) {
-    uiFileName = `${res.groupName}.mjs`
-    const uiGroupPath = path.join(info.uiMjsDir, uiFileName)
-    const uiVueGen = new UiMjsGroupGenerator()
-    const uiGroupSrc = uiVueGen.generate(res.csAst, res.groupName)
-    fs.writeFileSync(uiGroupPath, uiGroupSrc)
-    const uiIndexGen = new UiMjsIndexGenerator()
-    const uiIndexSrc = uiIndexGen.generate(fs.readdirSync(info.uiMjsDir))
-    fs.writeFileSync(path.join(info.uiMjsDir, `index.mjs`), uiIndexSrc)
-  }
+  let uiFileName = info.uiMjsDir ? `${res.groupName}.mjs` : null
 
   const tsdContent = createTsdFile(info, {
     prompt: titleBar.content.replaceAll('/*', '').replaceAll('*/', ''), 
@@ -839,12 +829,25 @@ function chooseFile(ctx:Awaited<ReturnType<typeof createGistPreview>>, info:Proj
     console.log(`Directory does not exist: ${path.dirname(fullTsdPath)}`)
     process.exit(1)
   }
+
   console.log(`\nSelected '${result.selectedFile}' data models`)
   fs.writeFileSync(fullTsdPath, tsdContent, { encoding: 'utf-8' })
   console.log(`\nSaved: ${fullTsdPath}`)
   if (fs.existsSync(path.dirname(fullApiPath))) {
     fs.writeFileSync(fullApiPath, apiContent, { encoding: 'utf-8' })
     console.log(`Saved: ${fullApiPath}`)
+  }
+  if (info.uiMjsDir) {
+    const uiGroupPath = path.join(info.uiMjsDir, uiFileName)
+    const uiVueGen = new UiMjsGroupGenerator()
+    const uiGroupSrc = uiVueGen.generate(res.csAst, res.groupName)
+    fs.writeFileSync(uiGroupPath, uiGroupSrc)
+    console.log(`Saved: ${uiGroupPath}`)
+    const uiIndexGen = new UiMjsIndexGenerator()
+    const uiIndexSrc = uiIndexGen.generate(fs.readdirSync(info.uiMjsDir))
+    const uiIndexPath = path.join(info.uiMjsDir, `index.mjs`)
+    fs.writeFileSync(uiIndexPath, uiIndexSrc)
+    console.log(`Saved: ${uiIndexPath}`)
   }
   if (fs.existsSync(path.dirname(fullMigrationPath))) {
     fs.writeFileSync(fullMigrationPath, migrationContent, { encoding: 'utf-8' })
