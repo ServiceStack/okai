@@ -681,8 +681,9 @@ export class CSharpAst {
                         } else if (prop.type === 'List`1' && this.commonValueTypes.includes(prop.genericArgs![0])) {
                             prop.attributes.push(...inputTagAttrs)
                         }
-                        const emptyValidateAttr = prop.attributes.find(x => x.name.toLowerCase() === 'validate')
-                        if (emptyValidateAttr && emptyValidateAttr.constructorArgs?.[0]?.value === '') {
+                        const emptyValidateAttr = prop.attributes
+                            .find(x => x.name.toLowerCase() === 'validate' && !x.constructorArgs?.length && !x.args?.length)
+                        if (emptyValidateAttr) {
                             prop.attributes = prop.attributes.filter(x => x !== emptyValidateAttr)
                         }
                     }
@@ -745,7 +746,12 @@ export class CSharpAst {
                             prop.attributes.push(...inputTagAttrs)
                         }
                     }
-                }
+                    const emptyValidateAttr = prop.attributes
+                        .find(x => x.name.toLowerCase() === 'validate' && !x.constructorArgs?.length && !x.args?.length)
+                    if (emptyValidateAttr) {
+                        prop.attributes = prop.attributes.filter(x => x !== emptyValidateAttr)
+                    }
+        }
                 if (isAuditBase) {
                     updateApi.requiresAuth = true
                     if (!updateApi.request.attributes?.find(x => x.name === 'AutoApply')) {
@@ -880,6 +886,7 @@ export const Transforms = {
         addAutoIncrementAttrs,
         addIconsToKnownTypes,
         hideReferenceProperties,
+        removeEmptyAttributes,
     ],
 }
 
@@ -963,6 +970,24 @@ export function replaceIds(gen:CSharpAst) {
             const idProp = type.properties?.find(x => x.isPrimaryKey)
             if (idProp) {
                 idProp.type = 'int'
+            }
+        }
+    }
+}
+
+export function removeEmptyAttributes(gen:CSharpAst) {
+    const removeEmptyAttrsNamed = ['icon','description','notes','tag','icon','alias'] // 'validate' removed in gen APIs
+    const filterEmptyAttrs = (attrs:MetadataAttribute[]) => 
+        attrs.filter(x => !(removeEmptyAttrsNamed.includes(x.name.toLowerCase()) && !x.constructorArgs?.length && !x.args?.length))
+    for (const type of gen.classes) {
+        if (type.attributes) {
+            type.attributes = filterEmptyAttrs(type.attributes)
+        }
+        if (type.properties) {
+            for (const prop of type.properties) {
+                if (prop.attributes) {
+                    prop.attributes =filterEmptyAttrs(prop.attributes)
+                }
             }
         }
     }
@@ -1113,7 +1138,7 @@ export function addIconsToKnownTypes(gen:CSharpAst) {
             const existingIcon = type.attributes.find(x => x.name === 'Icon')
             if (existingIcon) {
                 // remove empty icon
-                if (existingIcon.constructorArgs?.[0]?.value === '') {
+                if (existingIcon.constructorArgs?.length === 0 && existingIcon.args?.length === 0) {
                     type.attributes = type.attributes.filter(x => x !== existingIcon)
                 }
                 return

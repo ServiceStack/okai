@@ -125,7 +125,7 @@ declare global {
     export function route(path:string, opt?:{ summary?:string, notes?:string, verbs?:string, priority?:number, matches?:string, }|string) : ClassDecoratorDef
     export function icon(opt?:{ svg?:string, uri?:string, alt?:string, cls?:string, }) : ClassDecoratorDef
     export function field(opt?:InputAttrOptions & { name?:string, fieldCss?:string, inputCss?:string, labelCss?:string, }) : ClassDecoratorDef
-    export function tag(name:string) : ClassDecoratorDef
+    export function tag(name?:string) : ClassDecoratorDef
     export function worker(name:string) : ClassDecoratorDef
     export function notes(notes:string) : ClassDecoratorDef
     export function namedConnection(name:string) : ClassDecoratorDef
@@ -167,7 +167,7 @@ declare global {
     export function flags() : ClassDecoratorDef
     export function enumMember(opt:{ value:string }) : ClassFieldDecoratorDef
 
-    export function validate(validator:string) : ClassFieldDecoratorDef
+    export function validate(validator?:string) : ClassFieldDecoratorDef
     export function validateNull() : ClassFieldDecoratorDef
     export function validateEmpty() : ClassFieldDecoratorDef
     export function validateEmail() : ClassFieldDecoratorDef
