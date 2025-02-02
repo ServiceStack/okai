@@ -510,7 +510,10 @@ Options:
 
   if (command.type === "prompt") {
     try {
-      if (!info.serviceModelDir) throw new Error("Could not find ServiceModel directory")
+      if (!info.serviceModelDir) {
+        console.log("Could not find ServiceModel directory, ensure okai is run within the context of a ServiceStack App")
+        process.exit(1)
+      }
       console.log(`Generating new APIs and Tables for: ${command.prompt}...`)
       const gist = await fetchGistFiles(command)
       // const projectGist = convertToProjectGist(info, gist)

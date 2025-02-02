@@ -1,6 +1,6 @@
 import type { ProjectInfo } from "./types.js"
 import { ParsedClass, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
-import { pick, toCamelCase, toPascalCase } from "./utils.js"
+import { pick, splitCase, toCamelCase, toPascalCase } from "./utils.js"
 
 // Tranforms that are only applied once on AI TypeScript AST
 
@@ -9,6 +9,7 @@ export function createTdAstFromAIAst(tsAst:ParseResult, gropName?:string) {
     rewriteToPascalCase(tsAst)
     replaceReferences(tsAst)
     replaceIds(tsAst)
+    replaceConflictTypes(tsAst)
 
     tsAst.classes.forEach(cls => {
         // replaceUserRefs(cls)
@@ -98,6 +99,35 @@ function replaceUserBaseClass(type:ParsedClass) {
         if (!idProp) {
             idProp = { name: 'id', type: 'number' } 
             type.properties?.unshift(idProp)
+        }
+    }
+}
+
+function replaceConflictTypes(gen:ParseResult) {
+    const conflictTypeNames = [`Service`, `Task`]
+    const conflictTypes = gen.classes.filter(x => conflictTypeNames.includes(x.name))
+    for (const conflictType of conflictTypes) {
+        const firstFkProp = conflictType.properties?.find(x => x.name.endsWith('Id'))
+        if (firstFkProp) {
+            const splitWords = splitCase(firstFkProp.name).split(' ')
+            const prefix = splitWords.length >= 2 ? splitWords[splitWords.length - 2] : null
+            if (prefix) {
+                const newType = `${toPascalCase(prefix)}${conflictType.name}`
+                const conflictTypeName = conflictType.name
+                conflictType.name = newType
+                for (const type of gen.classes) {
+                    if (type.properties) {
+                        for (const prop of type.properties) {
+                            if (prop.type === conflictTypeName) {
+                                prop.type = newType
+                            }
+                            if (prop.type === `${conflictTypeName}[]`) {
+                                prop.type = `${newType}[]`
+                            }
+                        }
+                    }
+                }                
+            }
         }
     }
 }

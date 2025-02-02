@@ -148,6 +148,7 @@ export function parseUserDtoType(cs:string) {
 }
 
 function walk(dir: string, fileList: string[] = [], opt?: { include:(path:string) => boolean, excludeDirs:string[] }): string[] {
+    if (!dir) return fileList
     const files = fs.readdirSync(dir)
     for (const file of files) {
         const filePath = path.join(dir, file)
