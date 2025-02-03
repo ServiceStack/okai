@@ -29,6 +29,35 @@ export type TsdHeader = {
     uiMjs?: string
 }
 
+export interface TableDefinition {
+    name: string
+    columns: ColumnDefinition[]
+}
+export interface ColumnDefinition {
+    columnName: string
+    columnOrdinal: number
+    columnSize: number
+    numericPrecision: number
+    numericScale: number
+    isUnique: boolean
+    isKey: boolean
+    baseCatalogName: string
+    baseColumnName: string
+    baseTableName: string
+    dataType: string
+    allowDBNull: boolean
+    providerType: number
+    isAliased: boolean
+    isExpression: boolean
+    isAutoIncrement: boolean
+    isRowVersion: boolean
+    isHidden: boolean
+    isLong: boolean
+    isReadOnly: boolean
+    dataTypeName: string
+    columnDefinition: string
+}
+
 // from https://raw.githubusercontent.com/ServiceStack/servicestack-vue/refs/heads/main/src/types.ts
 export type FormStyle = "slideOver" | "card"
 export type TableStyle = "simple" | "fullWidth" | "stripedRows" | "whiteBackground" | "uppercaseHeadings" | "verticalLines"
