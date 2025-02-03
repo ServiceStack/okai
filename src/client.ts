@@ -36,34 +36,39 @@ const converter = {
         'IDictionary<string,string>': 'Record<string,string>',
     },
     rules: {
+        equals: {
+
+        },
         prefix: {
             date: 'Date',
             time: 'TimeSpan',            
         },
         suffix: {
-            'Date': 'Date',
-            'Time': 'TimeSpan',
-            'Utc':  'DateTimeOffset',
-            'At':   'Date',
+            'Date':      'Date',
+            'Time':      'TimeSpan',
+            'Utc':       'DateTimeOffset',
+            'At':        'Date',
+            'Start':     'Date',
+            'End':       'Date',
+            'Enabled':   'boolean',
+            'Confirmed': 'boolean',
         }
     }
 }
-function toJsType(fullType:string) {    
+function toJsType(name:string, fullType:string) {    
     const type = lastRightPart(fullType, '.')
-    let jsType = converter.jsTypeMap[type]
-    if (jsType) return jsType
-
     for (const [k,v] of Object.entries(converter.rules.prefix)) {
-        if (type.startsWith(k)) {
+        if (name.startsWith(k)) {
             return v
         }
     }
     for (const [k,v] of Object.entries(converter.rules.suffix)) {
-        if (type.endsWith(k)) {
+        if (name.endsWith(k)) {
             return v
         }
     }
-    return type
+    let jsType = converter.jsTypeMap[type]
+    return jsType ?? type
 }
 
 export function convertDefinitionsToAst(definitions:TableDefinition[]) {
@@ -82,7 +87,7 @@ export function convertDefinitionsToAst(definitions:TableDefinition[]) {
             properties: def.columns.map(x => {
                 const ret:ParsedProperty = {
                     name: toCamelCase(x.columnName),
-                    type: toJsType(x.dataType),
+                    type: toJsType(x.columnName, x.dataType),
                     optional: x.allowDBNull,
                 }
                 if (x.isKey) {
