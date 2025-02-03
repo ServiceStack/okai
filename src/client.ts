@@ -1,6 +1,6 @@
-import { ParsedClass, ParsedProperty, ParseResult } from "./ts-parser"
 import type { GistFile, TableDefinition } from "./types"
-import { lastRightPart, toCamelCase, toPascalCase } from "./utils"
+import { ParsedClass, ParsedProperty, ParseResult } from "./ts-parser.js"
+import { lastRightPart, toCamelCase, toPascalCase } from "./utils.js"
 
 export function getFileContent(file:GistFile) {
     return file.content

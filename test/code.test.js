@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import dbJson from './db.json'
+import appJson from './App.json'
 import { convertDefinitionsToAst } from '../src/client'
 import { toTsd } from '../src/tsd-gen'
 
@@ -10,7 +10,7 @@ import { toTsd } from '../src/tsd-gen'
 
 describe('code gen tests', () => {
 	it('does parse convert db.json to .d.ts', () => {
-        const ast = convertDefinitionsToAst(dbJson)
+        const ast = convertDefinitionsToAst(appJson)
         const ts = toTsd(ast)
         // console.log(ts)
         expect(ts.trim()).toEqual(`

@@ -19,6 +19,7 @@ declare global {
     export class TimeSpan {}
     export class DateOnly {}
     export class TimeOnly {}
+    export class DateTimeOffset {}
     export class Guid {}
     export class List<T> {}
     export class HashSet<T> {}

@@ -7,13 +7,13 @@ import { leftPart, replaceMyApp, trimStart, toPascalCase, plural } from "./utils
 import { generateCsAstFromTsd, toAst, astForProject } from "./ts-ast.js"
 import { CSharpApiGenerator } from "./cs-apis.js"
 import { CSharpMigrationGenerator } from "./cs-migrations.js"
-import { getFileContent } from "./client.js"
+import { convertDefinitionsToAst, getFileContent } from "./client.js"
 import { toTsd } from "./tsd-gen.js"
 import { UiMjsGroupGenerator, UiMjsIndexGenerator } from "./ui-mjs.js"
 import { ParsedConfig, ParseResult } from "./ts-parser.js"
 
 type Command = {
-  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept" | "chat"
+  type:       "prompt" | "update" | "help" | "version" | "init" | "info" | "verbose" | "list" | "add" | "remove" | "accept" | "chat" | "convert"
   prompt?:    string
   models?:    string
   tsdFile?:   string
@@ -31,6 +31,7 @@ type Command = {
   add?:       string
   accept?:    string
   init?:      string
+  convert?:   string
   info?:      ProjectInfo
 }
 
@@ -86,7 +87,7 @@ function parseArgs(...args: string[]) : Command {
             ret.unknown.push(arg)
             break
       }
-    } else if (ret.type === "help" && ["help","info","init","ls","add","rm","update","accept"].includes(arg)) {
+    } else if (ret.type === "help" && ["help","info","init","ls","add","rm","update","accept","convert"].includes(arg)) {
       if (arg == "help")      ret.type = "help"
       else if (arg == "info") ret.type = "info"
       else if (arg == "init") {
@@ -116,6 +117,9 @@ function parseArgs(...args: string[]) : Command {
       } else if (arg == "accept") {
         ret.type = "accept"
         ret.accept = args[++i]
+      } else if (arg == "convert") {
+        ret.type = "convert"
+        ret.convert = args[++i]
       }
     } else if (arg == "chat") {
       ret.type = "chat"
@@ -190,24 +194,25 @@ export async function cli(cmdArgs:string[]) {
     }
     const bin = script.padStart(7, ' ')
     console.log(`Usage: 
-${bin} <prompt>             Generate new TypeScript Data Models, C# APIs and Migrations from prompt
-    -m, -models <model,>     Specify up to 5 LLM models to generate .d.ts Data Models
-    -l, -license <LC-xxx>    Specify valid license certificate or key to use premium models
+${bin} <prompt>               Generate new TypeScript Data Models, C# APIs and Migrations from prompt
+    -m, -models <model,>       Specify up to 5 LLM models to generate .d.ts Data Models
+    -l, -license <LC-xxx>      Specify valid license certificate or key to use premium models
 
-${bin} <models>.d.ts        Regenerate C# *.cs files for Data Models defined in the TypeScript .d.ts file
-    -w, -watch               Watch for changes to <models>.d.ts and regenerate *.cs on save
+${bin} <models>.d.ts          Regenerate C# *.cs files for Data Models defined in the TypeScript .d.ts file
+    -w, -watch                 Watch for changes to <models>.d.ts and regenerate *.cs on save
 
-${bin} rm <models>.d.ts     Remove <models>.d.ts and its generated *.cs files
-${bin} ls models            Display list of available premium LLM models
-${bin} init                 Initialize okai.json with project info to override default paths
-${bin} init <model>         Create an empty <model>.d.ts file for the specified model
-${bin} info                 Display current project info
-${bin} chat <prompt>        Submit a new OpenAI chat request with the specified prompt
-    -system <prompt>         Specify a system prompt
+${bin} rm <models>.d.ts       Remove <models>.d.ts and its generated *.cs files
+${bin} ls models              Display list of available premium LLM models
+${bin} init                   Initialize okai.json with project info to override default paths
+${bin} init <model>           Create an empty <model>.d.ts file for the specified model
+${bin} convert <schema.json>  Convert .NET RDBMS TableDefinitions to TypeScript Data Models
+${bin} info                   Display current project info
+${bin} chat <prompt>          Submit a new OpenAI chat request with the specified prompt
+    -system <prompt>           Specify a system prompt
 
-Options:
-    -v, -verbose             Display verbose logging
-        --ignore-ssl-errors  Ignore SSL Errors`)
+Options:  
+    -v, -verbose               Display verbose logging
+        --ignore-ssl-errors    Ignore SSL Errors`)
 
         process.exit(exitCode)
     return
@@ -448,6 +453,27 @@ Options:
       process.exit(0)
     }
   }
+
+  if (command.type == "convert") {
+    const dbJson = fs.readFileSync(command.convert, 'utf-8')
+    const tableDefs = JSON.parse(dbJson)
+    const tsdAst = convertDefinitionsToAst(tableDefs)
+
+    const groupName = path.basename(command.convert).replace('.json', '')
+    const apiFileName = `${groupName}.cs`
+    let uiFileName = info.uiMjsDir ? `${groupName}.mjs` : null
+
+    const tsdContent = createTsdFile(info, {
+      prompt: path.basename(command.convert), 
+      apiFileName, 
+      tsdAst: tsdAst,
+      uiFileName,
+    })
+
+    console.log(tsdContent)
+    process.exit(0)
+  }
+
   if (command.type === "remove") {
     let tsdPath = assertTsdPath(command.tsdFile)
 
