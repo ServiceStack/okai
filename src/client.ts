@@ -1,6 +1,6 @@
 import type { GistFile, TableDefinition } from "./types"
 import { ParsedClass, ParsedProperty, ParseResult } from "./ts-parser.js"
-import { lastRightPart, toCamelCase, toPascalCase } from "./utils.js"
+import { lastRightPart, leftPart, toCamelCase, toPascalCase } from "./utils.js"
 
 export function getFileContent(file:GistFile) {
     return file.content
@@ -35,6 +35,40 @@ const converter = {
         'Dictionary<string,string>': 'Record<string,string>',
         'IDictionary<string,string>': 'Record<string,string>',
     },
+    // https://www.npgsql.org/doc/types/basic.html
+    jsDateTypeMap: {
+        'boolean':   'boolean',
+        'smallint':  'short',
+        'integer':   'number',
+        'bigint':    'long',
+        'real':      'float',
+        'numeric':   'decimal',
+        'money':     'decimal',
+        'text':      'string',
+        'character varying': 'string',
+        'character': 'string',
+        'citext':    'string',
+        'json':      'string',
+        'jsonb':     'string',
+        'xml':       'string',
+        'uuid':      'Guid',
+        'bytea':     'Uint8Array',
+        'timestamp without time zone': 'Date',
+        'timestamp with time zone': 'Date',
+        'date':      'Date',
+        'time without time zone': 'TimeSpan',
+        'time with time zone': 'DateTimeOffset',
+        'interval':  'TimeSpan',
+        'bit(1)':    'boolean',
+        'bit varying': 'Uint8Array',
+        'oid':       'uint',
+        'xid':       'uint',
+        'cid':       'uint',
+        'oidvector': 'uint[]',
+        'name':      'string',
+        'hstore': 'Record<string,string>',
+        'double precision': 'double',
+    },
     rules: {
         equals: {
 
@@ -55,8 +89,14 @@ const converter = {
         }
     }
 }
-function toJsType(name:string, fullType:string) {    
+function toJsType(name:string, fullType:string, dataTypeName:string) {    
     const type = lastRightPart(fullType, '.')
+    if (type === 'Array') {
+        const dataType = leftPart(dataTypeName, '[')
+        const jsType = converter.jsDateTypeMap[dataType]
+        return jsType ? jsType + '[]' : 'any[]'
+    }
+
     for (const [k,v] of Object.entries(converter.rules.prefix)) {
         if (name.startsWith(k)) {
             return v
@@ -82,12 +122,16 @@ export function convertDefinitionsToAst(definitions:TableDefinition[]) {
     }
 
     for (const def of definitions) {
+        if (!def.name) {
+            console.log('Table definition:', JSON.stringify(def, null, 2))
+            throw new Error('Table definition must have a name')
+        }
         const cls:ParsedClass = {
             name: toPascalCase(def.name),
             properties: def.columns.map(x => {
                 const ret:ParsedProperty = {
                     name: toCamelCase(x.columnName),
-                    type: toJsType(x.columnName, x.dataType),
+                    type: toJsType(x.columnName, x.dataType, x.dataTypeName),
                     optional: x.allowDBNull,
                 }
                 if (x.isKey) {

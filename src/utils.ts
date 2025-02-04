@@ -205,7 +205,7 @@ export function toPascalCase(s?: string) {
         return words.map(x => x[0].toUpperCase() + x.substring(1).toLowerCase()).join('')
     }
     if (s.includes('_')) {
-        return s.split('_').map(x => x[0].toUpperCase() + x.substring(1)).join('')
+        return s.split('_').filter(x => x[0]).map(x => x[0].toUpperCase() + x.substring(1)).join('')
     }
     return s.charAt(0).toUpperCase() + s.substring(1)
 }

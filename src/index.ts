@@ -430,6 +430,13 @@ Options:
       return newTsdContent
     }
 
+    if (info.serviceModelDir) {
+      const relativeServiceModelDir = trimStart(info.serviceModelDir.substring(info.slnDir.length), '~/')
+      const apiTypesPath = path.join(info.slnDir,relativeServiceModelDir,`api.d.ts`)
+      const apiFile = path.join(import.meta.dirname, 'api.d.ts')
+      fs.writeFileSync(apiTypesPath, fs.readFileSync(apiFile, 'utf-8'))
+    }
+
     if (command.watch) {
       let lastTsdContent = tsdContent
       console.log(`watching ${tsdPath} ...`)
@@ -462,6 +469,10 @@ Options:
     const groupName = path.basename(command.convert).replace('.json', '')
     const apiFileName = `${groupName}.cs`
     let uiFileName = info.uiMjsDir ? `${groupName}.mjs` : null
+
+    if (tsdAst.references.length == 0) {
+      tsdAst.references.push({ path: './api.d.ts' })
+    }
 
     const tsdContent = createTsdFile(info, {
       prompt: path.basename(command.convert), 
