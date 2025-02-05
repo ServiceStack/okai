@@ -36,12 +36,24 @@ export class UiMjsGroupGenerator {
             `    group: "${groupLabel}",`,
             `    items: {`,
                 ...ast.types.filter(x => !x.isEnum && !x.isInterface && !this.ignore.includes(x.name)).map(x => {
+                    const template = x.inherits?.name == 'AuditBase' ? [
+                    `<AutoQueryGrid :type="type"`,
+                    `    selected-columns="${x.properties.map(x => toCamelCase(x.name)).join(',')}">`,
+                        `  <template #formfooter="{ form, type, apis, model, id }">`,
+                           `    <AuditEvents v-if="form === 'edit'" class="mt-4" :key="id" :type="type" :id="id" />`,
+                        `  </template>`,
+                    `</AutoQueryGrid>`] : [
+                    `<AutoQueryGrid :type="type"`,
+                    `    selected-columns="${x.properties.map(x => toCamelCase(x.name)).join(',')}" />`,
+                    ]
+
                     return [
                         `        ${plural(x.name)}: {`,
                         `            type: '${x.name}',`,
                         `            component: {`,
-                        `                template:\`<AutoQueryGrid :type="type"`,
-                        `                    selected-columns="${x.properties.map(x => toCamelCase(x.name)).join(',')}" />\`,`,
+                        `                template:\``,
+                        ...template.map(x => `                ${x}`),
+                        `                \`,`,
                         `            },`,
                         `        },`,
                     ].join('\n')
