@@ -183,7 +183,7 @@ export async function cli(cmdArgs:string[]) {
       uiMjsDir: "/path/to/MyApp/wwwroot/admin/sections",
     }
     fs.writeFileSync('okai.json', JSON.stringify(info, undefined, 2))
-    console.log(`Added: okai.json`)
+    console.log(`Saved: okai.json`)
     process.exit(0)
     return
   }
@@ -295,7 +295,7 @@ Options:
   if (command.type == "init" && command.info) {
     const toApiFile = path.join(info.serviceModelDir, 'api.d.ts')
     fs.copyFileSync(path.join(import.meta.dirname, 'api.d.ts'), toApiFile)
-    console.log(`Added: ${toApiFile}`)
+    console.log(`Saved: ${toApiFile}`)
 
     let model = toPascalCase(leftPart(command.init, '.'))
     let groupName = plural(model)
@@ -342,7 +342,7 @@ Options:
 
       const toFile = path.join(info.serviceModelDir, 'api.d.ts')
       fs.copyFileSync(apiFile, toFile)
-      console.log(`Added: ${toFile}`)
+      console.log(`Saved: ${toFile}`)
       process.exit(0)
     } else {
       console.log(`Unknown add command: ${command.add}`)
@@ -453,7 +453,7 @@ Options:
       return
     } else {
     
-      regenerate(header,tsdContent,'saved: ')
+      regenerate(header,tsdContent,'Saved: ')
       console.log(`\nLast migration can be rerun with 'npm run rerun:last' or:`)
       console.log(`$ dotnet run --AppTasks=migrate.rerun:last`)
     
