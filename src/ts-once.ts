@@ -50,21 +50,25 @@ export function transformUserRefs(tsAst:ParseResult, info:ProjectInfo) {
                 */
                 if (info.userType) prop.type = info.userType
                 if (!prop.annotations) prop.annotations = []
-                const attr = {
-                    name: 'reference',
-                    args: {
-                        selfId: 'createdBy',
-                        refId: 'userName',
-                    } as Record<string,any>
+                if (!prop.annotations.find(x => x.name === 'reference')) {
+                    const attr = {
+                        name: 'reference',
+                        args: {
+                            selfId: 'createdBy',
+                            refId: 'userName',
+                        } as Record<string,any>
+                    }
+                    if (info.userLabel) attr.args.refLabel = info.userLabel
+                    prop.annotations.push(attr)
                 }
-                if (info.userLabel) attr.args.refLabel = info.userLabel
-                prop.annotations.push(attr)
             }
             if (prop.type === 'User[]') {
                 if (info.userType) {
                     prop.type = info.userType + '[]'
                     if (!prop.annotations) prop.annotations = []
-                    prop.annotations.push({ name: 'reference' })
+                    if (!prop.annotations.find(x => x.name === 'reference')) {
+                        prop.annotations.push({ name: 'reference' })
+                    }
                     const idPropType = cls.properties.find(x => x.name.toLowerCase() === 'id')?.type ?? 'number'
                     // Add Many to Many User Table
                     addClasses.push({

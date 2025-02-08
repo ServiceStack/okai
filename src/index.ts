@@ -327,7 +327,6 @@ Options:
       tsdAst,
       uiFileName,
     })
-    command.type = "update" // let update handle the rest
     command.tsdFile = groupName + '.d.ts'
     fs.writeFileSync(path.join(info.serviceModelDir, command.tsdFile), tsdContent, { encoding: 'utf-8' })
   }
@@ -371,7 +370,7 @@ Options:
         : path.join(process.cwd(), filePath)
   }
 
-  if (command.type === "update") {
+  if (command.type === "update" || (command.type == "init" && command.info)) {
     let tsdPath = assertTsdPath(command.tsdFile)
 
     if (command.verbose) console.log(`Updating: ${tsdPath}...`)
@@ -454,8 +453,13 @@ Options:
     } else {
     
       regenerate(header,tsdContent,'Saved: ')
-      console.log(`\nLast migration can be rerun with 'npm run rerun:last' or:`)
-      console.log(`$ dotnet run --AppTasks=migrate.rerun:last`)
+      if (command.type == "init") {
+        console.log(`\nRun 'npm run migrate' to apply the new migration and create the new tables or:`)
+        console.log(`$ dotnet run --AppTasks=migrate`)
+      } else {
+        console.log(`\nLast migration can be rerun with 'npm run rerun:last' or:`)
+        console.log(`$ dotnet run --AppTasks=migrate.rerun:last`)
+      }
     
       process.exit(0)
     }
