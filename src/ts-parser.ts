@@ -432,13 +432,15 @@ export class TypeScriptParser {
         this.classes = []
         this.interfaces = []
         this.enums = []
+        const src = removeMultilineComments(sourceCode)
+        // const src = sourceCode
 
-        this.parseConfigType(sourceCode)
-        this.parseDefaultExport(sourceCode)
-        this.parseReferences(sourceCode);
-        this.parseInterfaces(sourceCode)
-        this.parseClasses(sourceCode)
-        this.parseEnums(sourceCode)
+        this.parseConfigType(src)
+        this.parseDefaultExport(src)
+        this.parseReferences(src)
+        this.parseInterfaces(src)
+        this.parseClasses(src)
+        this.parseEnums(src)
 
         return {
             config: this.config,
@@ -640,4 +642,36 @@ function parseGenericType(typeStr: string): {
 
 function isNullableType(type: string): boolean {
     return type === 'null' || type === 'undefined'
+}
+
+// Removes /*: Merge with User DTO... */ comments from the source code
+export function removeMultilineComments(src:string) {
+    let result = ''
+    let inComment = false
+    let i = 0
+    
+    while (i < src.length) {
+        // Check for comment start
+        if (src[i] === '/' && src[i + 1] === '*' && src[i + 2] === ':') {
+            inComment = true
+            i += 2
+            continue
+        }
+        
+        // Check for comment end
+        if (inComment && (src[i] === '*' && src[i + 1] === '/')) {
+            inComment = false
+            i += 2
+            continue
+        }
+        
+        // Only append characters when not in a comment
+        if (!inComment) {
+            result += src[i]
+        }
+        
+        i++
+    }
+    
+    return result
 }
