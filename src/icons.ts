@@ -48,11 +48,11 @@ export function generateCombinations(words:string[]) {
 function withAliases(icons:{[name:string]:string}, aliases:{[name:string]:string[]}):{[name:string]:string} {
     const result:{[name:string]:string} = {}
     Object.keys(icons).forEach(name => {
-        result[name.toLowerCase()] = icons[name]
+        result[name.toLowerCase()] = icons[name].replaceAll('"',"'")
     })
     Object.keys(aliases).forEach(name => {
         for (const alias of aliases[name]) {
-            result[alias.toLowerCase()] = icons[name]
+            result[alias.toLowerCase()] = icons[name].replaceAll('"',"'")
         }
     })
     return result
@@ -166,7 +166,7 @@ export const IconMap = {
     Refund:       S(`0 0 20 20`,`<path fill='currentColor' fill-rule='evenodd' d='M5 2a2 2 0 0 0-2 2v14l3.5-2l3.5 2l3.5-2l3.5 2V4a2 2 0 0 0-2-2zm4.707 3.707a1 1 0 0 0-1.414-1.414l-3 3a1 1 0 0 0 0 1.414l3 3a1 1 0 0 0 1.414-1.414L8.414 9H10a3 3 0 0 1 3 3v1a1 1 0 1 0 2 0v-1a5 5 0 0 0-5-5H8.414z' clip-rule='evenodd'/>`),
     Play:         S(`0 0 24 24`,`<path fill='currentColor' d='M8 5.14v14l11-7z'/>`),
     Result:       S(`0 0 2048 2048`,`<path fill='currentColor' d='M2048 640v640h-768v512H128v128H0V0h128v128h1408v512zM128 256v384h1280V256zm1024 1408v-384H128v384zm768-512V768H128v384z'/>`),
-    Auction:      S(`0 0 24 24`,`<path fill="currentColor" d="M14.005 20.003v2h-12v-2zM14.59.689l7.778 7.778l-1.414 1.414l-1.061-.353l-2.475 2.475l5.657 5.657l-1.414 1.414l-5.657-5.657l-2.404 2.404l.283 1.132l-1.415 1.414l-7.778-7.778l1.414-1.415l1.132.283l6.293-6.293l-.353-1.06zm.707 3.536l-7.071 7.07l3.535 3.536l7.071-7.07z"/>`),
+    Auction:      S(`0 0 24 24`,`<path fill='currentColor' d='M14.005 20.003v2h-12v-2zM14.59.689l7.778 7.778l-1.414 1.414l-1.061-.353l-2.475 2.475l5.657 5.657l-1.414 1.414l-5.657-5.657l-2.404 2.404l.283 1.132l-1.415 1.414l-7.778-7.778l1.414-1.415l1.132.283l6.293-6.293l-.353-1.06zm.707 3.536l-7.071 7.07l3.535 3.536l7.071-7.07z'/>`),
 
     /** CMS */
     Page:     S('0 0 24 24',`<g fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'><path d='M4 21.4V2.6a.6.6 0 0 1 .6-.6h11.652a.6.6 0 0 1 .424.176l3.148 3.148A.6.6 0 0 1 20 5.75V21.4a.6.6 0 0 1-.6.6H4.6a.6.6 0 0 1-.6-.6M8 10h8m-8 8h8m-8-4h4'/><path d='M16 2v3.4a.6.6 0 0 0 .6.6H20'/></g>`),
@@ -199,7 +199,7 @@ export const IconMap = {
     Alert:      S(`0 0 24 24`,`<path fill='currentColor' d='M12 2L1 21h22M12 6l7.53 13H4.47M11 10v4h2v-4m-2 6v2h2v-2'/>`),
     Data:       S(`0 0 24 24`,`<path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M18 12v5c0 1.657-2.686 3-6 3s-6-1.343-6-3v-5m12 0V7m0 5c0 1.657-2.686 3-6 3s-6-1.343-6-3m12-5c0-1.657-2.686-3-6-3S6 5.343 6 7m12 0c0 1.657-2.686 3-6 3S6 8.657 6 7m0 5V7'/>`),
     Tool:       S(`0 0 24 24`,`<path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 10h3V7L6.5 3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1-3 3l-6-6a6 6 0 0 1-8-8z'/>`),
-    Chip:       S('0 0 512 512',`<rect width="352" height="352" x="80" y="80" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32" rx="48" ry="48"/><rect width="224" height="224" x="144" y="144" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32" rx="16" ry="16"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M256 80V48m80 32V48M176 80V48m80 416v-32m80 32v-32m-160 32v-32m256-176h32m-32 80h32m-32-160h32M48 256h32m-32 80h32M48 176h32"/>`),
+    Chip:       S('0 0 512 512',`<rect width='352' height='352' x='80' y='80' fill='none' stroke='currentColor' stroke-linejoin='round' stroke-width='32' rx='48' ry='48'/><rect width='224' height='224' x='144' y='144' fill='none' stroke='currentColor' stroke-linejoin='round' stroke-width='32' rx='16' ry='16'/><path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='32' d='M256 80V48m80 32V48M176 80V48m80 416v-32m80 32v-32m-160 32v-32m256-176h32m-32 80h32m-32-160h32M48 256h32m-32 80h32M48 176h32'/>`),
 
     /** Actions */
     Completed: S(`0 0 2048 2048`,`<path fill='currentColor' d='M1024 0q141 0 272 36t244 104t207 160t161 207t103 245t37 272q0 141-36 272t-104 244t-160 207t-207 161t-245 103t-272 37q-141 0-272-36t-244-104t-207-160t-161-207t-103-245t-37-272q0-141 36-272t104-244t160-207t207-161T752 37t272-37m603 685l-136-136l-659 659l-275-275l-136 136l411 411z'/>`),

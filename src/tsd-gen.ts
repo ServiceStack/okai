@@ -6,7 +6,7 @@ export class TsdGenerator {
     export: boolean = true
     interfaces: string[] = []
     enums: string[] = []
-    ast: ParseResult = { references:[], classes:[], interfaces:[], enums: [] }
+    ast: ParseResult = { references:[], classes:[], interfaces:[], enums: [] }    
 
     get typePrefix() {
         return this.export ? 'export ' : ''
@@ -52,6 +52,9 @@ export class TsdGenerator {
 
     toType(ast:ParsedClass|ParsedInterface, type:"interface"|"class") {
         const sb:string[] = []
+        if (ast.name === 'User') {
+            sb.push('/*: Merge with User DTO')
+        }
         if (ast.comment) {
             sb.push(ast.comment.split('\n').map(x => `// ${x}`).join('\n'))
         }
@@ -75,6 +78,9 @@ export class TsdGenerator {
             sb.push(`  ${prop.name}${prop.optional ? '?' : ''}: ${prop.type}`)
         }
         sb.push('}')
+        if (ast.name === 'User') {
+            sb.push('*/')
+        }
         return sb.join('\n')
     }
 
