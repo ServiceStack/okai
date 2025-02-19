@@ -26,7 +26,7 @@ export function toAst(src:string) {
     return parser.parse(src)
 }
 
-// Tranforms that are only applied once on AI TypeScript AST
+// Transforms that are only applied once on AI TypeScript AST
 export function createAstFromAITypeScript(ts:string) {
     const parser = new TypeScriptParser()
     const tdAst = parser.parse(ts)

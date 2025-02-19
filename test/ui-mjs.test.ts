@@ -26,36 +26,46 @@ describe('UI mjs tests', () => {
         Companies: {
             type: 'Company',
             component: {
-                template:\`<AutoQueryGrid :type="type"
-                    selected-columns="id,name,description,website" />\`,
+                template:\`
+                <AutoQueryGrid :type="type"
+                    selected-columns="id,name,description,website" />
+                \`,
             },
         },
         Jobs: {
             type: 'Job',
             component: {
-                template:\`<AutoQueryGrid :type="type"
-                    selected-columns="id,companyId,title,description,type,category,status,postedAt" />\`,
+                template:\`
+                <AutoQueryGrid :type="type"
+                    selected-columns="id,companyId,title,description,type,category,status,postedAt" />
+                \`,
             },
         },
         JobRequirements: {
             type: 'JobRequirement',
             component: {
-                template:\`<AutoQueryGrid :type="type"
-                    selected-columns="id,jobId,skill,experience,description" />\`,
+                template:\`
+                <AutoQueryGrid :type="type"
+                    selected-columns="id,jobId,skill,experience,description" />
+                \`,
             },
         },
         JobApplicants: {
             type: 'JobApplicant',
             component: {
-                template:\`<AutoQueryGrid :type="type"
-                    selected-columns="id,jobId,name,email,resume,coverLetter,appliedAt" />\`,
+                template:\`
+                <AutoQueryGrid :type="type"
+                    selected-columns="id,jobId,name,email,resume,coverLetter,appliedAt" />
+                \`,
             },
         },
         Interviews: {
             type: 'Interview',
             component: {
-                template:\`<AutoQueryGrid :type="type"
-                    selected-columns="id,jobApplicantId,scheduledAt,conductedAt,result" />\`,
+                template:\`
+                <AutoQueryGrid :type="type"
+                    selected-columns="id,jobApplicantId,scheduledAt,conductedAt,result" />
+                \`,
             },
         },
     }

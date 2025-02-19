@@ -22,7 +22,9 @@ export class CSharpAst {
         "undefined":sys("string"),
         "bigint":sys("long"),
         "any":sysObj,
+        "unknown":sysObj,
         "Record":sys("Dictionary"),
+        "Buffer":sys("byte[]"),
         "ArrayBuffer":sys("byte[]"),
         "SharedArrayBuffer":sys("byte[]"),
         "Int8Array":sys("sbyte[]"),
@@ -1082,7 +1084,7 @@ export function convertArraysToLists(gen:CSharpAst) {
         for (const prop of type.properties!) {
             const optional = prop.type.endsWith('?')
             let propType = unwrap(prop.type)
-            if (propType.endsWith('[]')) {
+            if (propType.endsWith('[]') && propType !== 'byte[]') {
                 const elType = propType.substring(0, propType.length-2)
                 prop.namespace = 'System.Collections.Generic'
                 prop.genericArgs = [elType]

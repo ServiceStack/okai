@@ -77,7 +77,7 @@ export class TypeScriptParser {
     private static readonly CLASS_PATTERN = /class\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?(?:\s+implements\s+([\w\s<>,]+))?\s*{/gm
     private static readonly INTERFACE_PATTERN = /interface\s+(\w+)(?:\s+extends\s+([\w\s<>,]+))?\s*{/gm
     private static readonly ENUM_PATTERN = /enum\s+(\w+)\s*{([^}]*)}/gm
-    private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>['"\w<>|[\],\s]+)?\s*;?/
+    private static readonly PROPERTY_PATTERN = /(?:(?<modifier>private|public|protected|readonly)\s+)*(?<name>\w+)(?<optional>\?)?\s*:\s*(?<type>['"\w<>|[\]{}:,\s]+)?\s*;?/
     private static readonly ENUM_MEMBER_PATTERN = /(\w+)\s*(?:=\s*("[^"]*"|'[^']*'|\d+|[^,\n]+))?\s*/
     public static readonly ANNOTATION_PATTERN = /^\s*@([A-Za-z_][A-Za-z0-9_]*\.?[A-Za-z_]?[A-Za-z0-9_]*)/
     public static readonly ANNOTATION_COMMENT = /\)[\s]*\/\/.*$/
@@ -168,7 +168,7 @@ export class TypeScriptParser {
 
     parseMetadata(body:string, line:string) {
         const annotations: ParsedAnnotation[] = []
-        const commments: string[] = []
+        const comments: string[] = []
         const ANNOTATION = TypeScriptParser.ANNOTATION_PATTERN
         let previousLine = this.getPreviousLine(body, body.lastIndexOf(line))
         while (previousLine && (!previousLine.match(TypeScriptParser.PROPERTY_PATTERN) || previousLine.match(ANNOTATION))) {
@@ -178,14 +178,14 @@ export class TypeScriptParser {
             } else {
                 const comment = this.isComment(previousLine) ? this.getLineComment(previousLine) : null
                 if (comment) {
-                    commments.unshift(comment)
+                    comments.unshift(comment)
                 }
             }
             previousLine = this.getPreviousLine(body, body.lastIndexOf(previousLine))
         }
         const lineComment = this.getLineComment(line)
         if (lineComment) {
-            commments.push(lineComment)
+            comments.push(lineComment)
         } else if (line.match(ANNOTATION)) {
             const annotation = parseAnnotation(line)
             if (annotation) {
@@ -194,7 +194,7 @@ export class TypeScriptParser {
         }
 
         const ret = {
-            comment: commments.length ? commments.join('\n') : undefined,
+            comment: comments.length ? comments.join('\n') : undefined,
             annotations: annotations.length ? annotations : undefined,
         }
         return ret
@@ -209,9 +209,21 @@ export class TypeScriptParser {
             const match = line.match(TypeScriptParser.PROPERTY_PATTERN)
             if (match?.groups) {
 
+                let type = match.groups.type?.trim()
+                const matchRecord = line.includes('{') ? line.match(/{\s*\[\s*\w+:\s*(\w+)\s*\]\s*:\s*(\w+)\s*;?\s*}/) : null
+                if (matchRecord) {
+                    // parse record: { [key: string]: string; }
+                    const keyType = matchRecord[1]
+                    const valType = leftPart(matchRecord[2], '|')!.trim()
+                    type = `Record<${keyType},${valType}>`
+                }
+                if (!type) {
+                    console.log(`Failed to parse property type: ${line}`)
+                    return
+                }
                 const member: ParsedProperty = {
                     name: match.groups.name,
-                    type: match.groups.type.trim(),
+                    type,
                 }
                 if (match.groups.modifier) member.modifier = match.groups.modifier
                 if (match.groups.optional === '?') member.optional = true

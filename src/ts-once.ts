@@ -2,9 +2,9 @@ import type { ProjectInfo } from "./types.js"
 import { ParsedClass, ParsedInterface, ParsedProperty, ParseResult } from "./ts-parser.js"
 import { pick, splitCase, toCamelCase, toPascalCase } from "./utils.js"
 
-// Tranforms that are only applied once on AI TypeScript AST
-
-export function createTdAstFromAIAst(tsAst:ParseResult, gropName?:string) {
+// Transforms that are only applied once on AI TypeScript AST
+export function createTdAstFromAIAst(tsAst:ParseResult, groupName?:string) {
+    rewriteInterfaceNames(tsAst)
     mergeInterfacesAndClasses(tsAst)
     rewriteToPascalCase(tsAst)
     replaceReferences(tsAst)
@@ -15,14 +15,15 @@ export function createTdAstFromAIAst(tsAst:ParseResult, gropName?:string) {
         // replaceUserRefs(cls)
         replaceUserBaseClass(cls)
         rewriteDuplicateTypePropNames(cls)
+        removeDuplicateProps(cls)
         rewriteSelfReferencingIds(cls)
         convertToAuditBase(cls)
         addCustomInputs(cls)
 
-        if (gropName) {
+        if (groupName) {
             if (!cls.annotations) cls.annotations = []
             if (!cls.annotations.some(x => x.name === 'tag')) {
-                cls.annotations.push({ name: 'tag', constructorArgs: [gropName] })
+                cls.annotations.push({ name: 'tag', constructorArgs: [groupName] })
             }
         }
     })
@@ -147,6 +148,20 @@ function rewriteDuplicateTypePropNames(type:ParsedClass) {
     }
 }
 
+function removeDuplicateProps(type:ParsedClass) {
+    const propNames = type.properties?.map(x => x.name) ?? []
+    const duplicateProps = type.properties?.filter(x => propNames.filter(y => y === x.name).length > 1)
+    if (duplicateProps) {
+        const props = []
+        for (const prop of type.properties) {
+            if (!props.find(x => x.name === prop.name)) {
+                props.push(prop)
+            }
+        }
+        type.properties = props
+    }
+}
+
 function rewriteSelfReferencingIds(type:ParsedClass) {
     const selfRefId = type.properties?.find(x => x.name.toLowerCase() === `${type.name}id`.toLowerCase())
     if (selfRefId) {
@@ -183,6 +198,31 @@ function rewriteToPascalCase(ast:ParseResult) {
                 m.name = toPascalCase(m.name)            
             })
         }
+    })
+}
+
+function rewriteInterfaceNames(ast:ParseResult) {
+    const renameTypes = {}
+    ast.interfaces?.forEach(t => {
+        const hasIPrefix = t.name.startsWith('I') 
+            && t.name[1].toUpperCase() === t.name[1]
+            && t.name[2].toLowerCase() === t.name[2]
+        
+        if (hasIPrefix) {
+            renameTypes[t.name] = t.name.substring(1)
+            renameTypes[t.name + '[]'] = t.name.substring(1) + '[]'
+            t.name = t.name.substring(1)
+        }
+    })
+    ast.classes?.concat(ast.interfaces || []).forEach(t => {
+        if (renameTypes[t.extends]) {
+            t.extends = renameTypes[t.extends]
+        }
+        t.properties?.forEach(p => {
+            if (renameTypes[p.type]) {
+                p.type = renameTypes[p.type]
+            }
+        })
     })
 }
 

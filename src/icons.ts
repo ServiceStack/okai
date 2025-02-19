@@ -167,6 +167,7 @@ export const IconMap = {
     Play:         S(`0 0 24 24`,`<path fill='currentColor' d='M8 5.14v14l11-7z'/>`),
     Result:       S(`0 0 2048 2048`,`<path fill='currentColor' d='M2048 640v640h-768v512H128v128H0V0h128v128h1408v512zM128 256v384h1280V256zm1024 1408v-384H128v384zm768-512V768H128v384z'/>`),
     Auction:      S(`0 0 24 24`,`<path fill='currentColor' d='M14.005 20.003v2h-12v-2zM14.59.689l7.778 7.778l-1.414 1.414l-1.061-.353l-2.475 2.475l5.657 5.657l-1.414 1.414l-5.657-5.657l-2.404 2.404l.283 1.132l-1.415 1.414l-7.778-7.778l1.414-1.415l1.132.283l6.293-6.293l-.353-1.06zm.707 3.536l-7.071 7.07l3.535 3.536l7.071-7.07z'/>`),
+    Portfolio:    S(`0 0 32 32`,`<path fill='currentColor' d='M28 10h-6V6a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2V12a2 2 0 0 0-2-2M12 6h8v4h-8ZM4 26V12h24v14Z'/>`),
 
     /** CMS */
     Page:     S('0 0 24 24',`<g fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'><path d='M4 21.4V2.6a.6.6 0 0 1 .6-.6h11.652a.6.6 0 0 1 .424.176l3.148 3.148A.6.6 0 0 1 20 5.75V21.4a.6.6 0 0 1-.6.6H4.6a.6.6 0 0 1-.6-.6M8 10h8m-8 8h8m-8-4h4'/><path d='M16 2v3.4a.6.6 0 0 0 .6.6H20'/></g>`),
@@ -188,6 +189,8 @@ export const IconMap = {
     News:     S('0 0 20 20',`<path fill='currentColor' d='M3 6c0-1.1.9-2 2-2h8l4-4h2v16h-2l-4-4H5a2 2 0 0 1-2-2H1V6zm8 9v5H8l-1.67-5H5v-2h8v2z'/>`),
     Search:   S('0 0 24 24',`<path fill='currentColor' d='m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14'/>`),
     Save:     S('0 0 24 24',`<path fill='currentColor' d='M7 19v-6h10v6h2V7.828L16.172 5H5v14zM4 3h13l4 4v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1m5 12v4h6v-4z'/>`),
+    Link:     S('0 0 24 24',`<path fill='currentColor' d='M11 17H7q-2.075 0-3.537-1.463T2 12t1.463-3.537T7 7h4v2H7q-1.25 0-2.125.875T4 12t.875 2.125T7 15h4zm-3-4v-2h8v2zm5 4v-2h4q1.25 0 2.125-.875T20 12t-.875-2.125T17 9h-4V7h4q2.075 0 3.538 1.463T22 12t-1.463 3.538T17 17z'/>`),
+    Translate:S('0 0 24 24',`<path fill='currentColor' d='m11.9 22l4.55-12h2.1l4.55 12H21l-1.075-3.05h-4.85L14 22zM4 19l-1.4-1.4l5.05-5.05q-.875-.875-1.588-2T4.75 8h2.1q.5.975 1 1.7t1.2 1.45q.825-.825 1.713-2.313T12.1 6H1V4h7V2h2v2h7v2h-2.9q-.525 1.8-1.575 3.7t-2.075 2.9l2.4 2.45l-.75 2.05l-3.05-3.125zm11.7-1.8h3.6l-1.8-5.1z'/>`),
 
     /** Formatting */
     PlainText:  S(`0 0 256 256`,`<path fill='currentColor' d='M212 56v32a12 12 0 0 1-24 0V68h-48v120h20a12 12 0 0 1 0 24H96a12 12 0 0 1 0-24h20V68H68v20a12 12 0 0 1-24 0V56a12 12 0 0 1 12-12h144a12 12 0 0 1 12 12Z'/>`),
@@ -199,7 +202,17 @@ export const IconMap = {
     Alert:      S(`0 0 24 24`,`<path fill='currentColor' d='M12 2L1 21h22M12 6l7.53 13H4.47M11 10v4h2v-4m-2 6v2h2v-2'/>`),
     Data:       S(`0 0 24 24`,`<path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M18 12v5c0 1.657-2.686 3-6 3s-6-1.343-6-3v-5m12 0V7m0 5c0 1.657-2.686 3-6 3s-6-1.343-6-3m12-5c0-1.657-2.686-3-6-3S6 5.343 6 7m12 0c0 1.657-2.686 3-6 3S6 8.657 6 7m0 5V7'/>`),
     Tool:       S(`0 0 24 24`,`<path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 10h3V7L6.5 3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1-3 3l-6-6a6 6 0 0 1-8-8z'/>`),
+    Output:     S('0 0 24 24',`<path fill='currentColor' d='m23 12l-4-4v3h-9v2h9v3M1 18V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3h-2V6H3v12h12v-3h2v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2'/>`),
+    Instrument: S('0 0 24 24',`<path fill='currentColor' d='M11.5 2h-1v4.2c-.1.1-.2.1-.3.3L2.1 20.7c-.3.6.1 1.3.8 1.3H16v-2H4.8L11 9.2l5.7 10l1.7-1l-6.6-11.8l-.3-.3zM21 6h-1v12l-.5 4h2l-.5-4z'/>`),
     Chip:       S('0 0 512 512',`<rect width='352' height='352' x='80' y='80' fill='none' stroke='currentColor' stroke-linejoin='round' stroke-width='32' rx='48' ry='48'/><rect width='224' height='224' x='144' y='144' fill='none' stroke='currentColor' stroke-linejoin='round' stroke-width='32' rx='16' ry='16'/><path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='32' d='M256 80V48m80 32V48M176 80V48m80 416v-32m80 32v-32m-160 32v-32m256-176h32m-32 80h32m-32-160h32M48 256h32m-32 80h32M48 176h32'/>`),
+
+    /** Things */
+    Sport:      S(`0 0 24 24`,`<path fill='currentColor' d='M4 6c0-1.1.9-2 2-2s2 .9 2 2s-.9 2-2 2s-2-.9-2-2M1 9h6l7-5l1.31 1.52l-4.17 2.98H14L21.8 4L23 5.4L14.5 12L14 22h-2l-.5-10L8 11H1z'/>`),
+    Help:       S(`0 0 24 24`,`<path fill='currentColor' d='M12 4c4.411 0 8 3.589 8 8s-3.589 8-8 8s-8-3.589-8-8s3.589-8 8-8m0-2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10S17.523 2 12 2m4 8a4 4 0 0 0-8 0h2c0-1.103.897-2 2-2s2 .897 2 2s-.897 2-2 2a1 1 0 0 0-1 1v2h2v-1.141A3.99 3.99 0 0 0 16 10m-3 6h-2v2h2z'/>`),
+    Watch:      S(`0 0 24 24`,`<path fill='currentColor' d='M11 6h2v7h-2zM9 20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5l2-9h4v7a1 1 0 0 1-1 1zm1-15H7V3h3zm5 15v-6a1 1 0 0 1-1-1V6h4l2 9v5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1M14 5V3h3v2z'/>`),
+    Food:       S(`0 0 24 24`,`<path fill='currentColor' d='M18.06 23h1.66c.84 0 1.53-.65 1.63-1.47L23 5.05h-5V1h-1.97v4.05h-4.97l.3 2.34c1.71.47 3.31 1.32 4.27 2.26c1.44 1.42 2.43 2.89 2.43 5.29zM1 22v-1h15.03v1c0 .54-.45 1-1.03 1H2c-.55 0-1-.46-1-1m15.03-7C16.03 7 1 7 1 15zM1 17h15v2H1z'/>`),
+    Animal:     S(`0 0 20 20`,`<path fill='currentColor' d='M5.5 4.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M3 4.5c-1.174 0-2 1.082-2 2.25S1.826 9 3 9s2-1.082 2-2.25S4.174 4.5 3 4.5m12 2.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25S18.174 9 17 9s-2-1.082-2-2.25m-4.5-2.5c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M4 14a6 6 0 0 1 12 0c0 .986-.504 1.753-1.21 2.255c-.697.495-1.601.745-2.485.745h-4.61c-.884 0-1.788-.25-2.484-.745C4.504 15.753 4 14.986 4 14'/>`),
+    Mix:        S(`0 0 512 512`,`<path fill='currentColor' fill-rule='evenodd' d='m269.264 271.083l70.256 70.25l56.966-.001l-27.57-27.58l30.17-30.17l79.084 79.084l-79.085 79.085l-30.17-30.17L396.487 384H321.83l-82.745-82.74zM399.085 70.248l79.085 79.085l-79.085 79.085l-30.17-30.17l27.572-27.582H339.52L126.17 384H42.667v-42.667h65.813L321.83 128l74.657-.001l-27.572-27.581zM126.17 128l82.745 82.739l-30.179 30.177l-70.256-70.25H42.667V128z'/>`),
 
     /** Actions */
     Completed: S(`0 0 2048 2048`,`<path fill='currentColor' d='M1024 0q141 0 272 36t244 104t207 160t161 207t103 245t37 272q0 141-36 272t-104 244t-160 207t-207 161t-245 103t-272 37q-141 0-272-36t-244-104t-207-160t-161-207t-103-245t-37-272q0-141 36-272t104-244t160-207t207-161T752 37t272-37m603 685l-136-136l-659 659l-275-275l-136 136l411 411z'/>`),
@@ -207,10 +220,10 @@ export const IconMap = {
 }
 export const IconGroups = { 
     User:['AppUser','Author'],
-    Contact:['Customer','Client','Employee','Applicant','Candidate','Staff'],
+    Contact:['Customer','Client','Manager','Employee','Applicant','Candidate','Staff'],
     Company:['Organization','Conference','City'],
     Account:['Profile'],
-    Team:['Collab','Collaboration'],
+    Team:['Collab','Collaboration','Role'],
     Region:['Country','State','Province','Capital'],
     Lock:['Security','Padlock','Secure'],
     Location:['Address','JobLocation'],
@@ -222,11 +235,12 @@ export const IconGroups = {
     Check:['Require'],
     Screening:['PhoneScreen'],
     Artifact:['Media'],
+    Booking:['Appointment','Reservation','Schedule'],
     Product:['Sku','Item','Restock','Stock'],
     Order:['Invoice'],
     LineItem:['InvoiceItem'],
     Opportunity:['Lead','Deal'],
-    Connect:['Interaction'],
+    Connect:['Interaction','Api'],
     Conversion:['Convert'],
     Expense:['Cost','Price','Amount','Salary'],
     Approve:['Approval'],
@@ -249,18 +263,18 @@ export const IconGroups = {
     Actual:['Request'],
     Pay:['Paystub'],
     Post:['Posting'],
-    Content:['Website','Blog','Template','LandingPage','Portal','Workspace'],
-    Menu:['Nav','Form','MenuList'],
+    Content:['Website','Blog','Template','LandingPage','Portal','Workspace','Layout'],
+    Menu:['Nav','Form','MenuList','Section'],
     Skill:['Qualification','Certification','Experience','Training','Requirement','Bid'],
-    Analytics:['Level','Metric','Kpi','Goal','Objective'],
+    Analytics:['Level','Metric','Kpi','Goal','Objective','Chart','Finance','Analysis'],
     Review:['Audit','Status'],
     Comment:['Feedback'],
     Vote:['Rating','Rank','Score','Priority'],
     Favorite:['Bookmark','Star'],
-    Logs:['Detail','Details','History','Log','Record','Journal','Entry','Transaction'],
+    Logs:['Detail','Details','History','Log','Record','Journal','Entry','Transaction','Trace'],
     PlainText:['Field'],
     Ship:['Shipment'],
-    Setting:['Adjustment','Configuration','Setup'],
+    Setting:['Adjustment','Config','Configuration','Setup','Option'],
     Activity:['Movement'],
     Attachment:['File'],
     News:['Announcement'],
@@ -269,6 +283,13 @@ export const IconGroups = {
     Search:['Filter','Lookup','Query','Match'],
     Save:['Saved','Archive','Backup','Download','Export'],
     Chip:['Hardware'],
+    Output:['Response'],
+    Range:['Span','Exchange'],
+    Translate:['Translation','Localization','Language'],
+    Portfolio:['Holding'],
+    Tool:['Maintenance','Support'],
+    Watch:['Sight','Sighting','View','Watchlist'],
+    Animal:['Wildlife','Pet','Zoo'],
 }
 export const Icons:{[name:string]:string} = withAliases(IconMap, IconGroups)
 
