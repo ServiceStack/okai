@@ -48,11 +48,11 @@ export function generateCombinations(words:string[]) {
 function withAliases(icons:{[name:string]:string}, aliases:{[name:string]:string[]}):{[name:string]:string} {
     const result:{[name:string]:string} = {}
     Object.keys(icons).forEach(name => {
-        result[name.toLowerCase()] = icons[name].replaceAll('"',"'")
+        result[name.toLowerCase()] = icons[name].replaceAll('"',`'`)
     })
     Object.keys(aliases).forEach(name => {
         for (const alias of aliases[name]) {
-            result[alias.toLowerCase()] = icons[name].replaceAll('"',"'")
+            result[alias.toLowerCase()] = icons[name].replaceAll('"',`'`)
         }
     })
     return result
@@ -211,6 +211,8 @@ export const IconMap = {
     Help:       S(`0 0 24 24`,`<path fill='currentColor' d='M12 4c4.411 0 8 3.589 8 8s-3.589 8-8 8s-8-3.589-8-8s3.589-8 8-8m0-2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10S17.523 2 12 2m4 8a4 4 0 0 0-8 0h2c0-1.103.897-2 2-2s2 .897 2 2s-.897 2-2 2a1 1 0 0 0-1 1v2h2v-1.141A3.99 3.99 0 0 0 16 10m-3 6h-2v2h2z'/>`),
     Watch:      S(`0 0 24 24`,`<path fill='currentColor' d='M11 6h2v7h-2zM9 20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5l2-9h4v7a1 1 0 0 1-1 1zm1-15H7V3h3zm5 15v-6a1 1 0 0 1-1-1V6h4l2 9v5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1M14 5V3h3v2z'/>`),
     Food:       S(`0 0 24 24`,`<path fill='currentColor' d='M18.06 23h1.66c.84 0 1.53-.65 1.63-1.47L23 5.05h-5V1h-1.97v4.05h-4.97l.3 2.34c1.71.47 3.31 1.32 4.27 2.26c1.44 1.42 2.43 2.89 2.43 5.29zM1 22v-1h15.03v1c0 .54-.45 1-1.03 1H2c-.55 0-1-.46-1-1m15.03-7C16.03 7 1 7 1 15zM1 17h15v2H1z'/>`),
+    Docker:     S(`0 0 24 24`,`<path fill='currentColor' d='M12.988 11.321h-2.035V9.448h2.035zm0-6.363h-2.035v1.906h2.035zm2.455 4.554h-2.035v1.842h2.035zM10.566 7.22H8.53v1.873h2.034zm2.422 0h-2.035v1.873h2.035zm8.689 3.133c-.452-.323-1.486-.42-2.261-.258c-.097-.775-.55-1.421-1.26-2.003l-.452-.258l-.258.452c-.55.872-.743 2.326-.13 3.262a3.4 3.4 0 0 1-1.485.356H2.07c-.259 1.582.193 3.682 1.356 5.103c1.13 1.357 2.907 2.035 5.168 2.035c4.91 0 8.592-2.26 10.272-6.395c.646 0 2.132 0 2.875-1.422c.032-.032.226-.42.258-.549zm-15.989-.84H3.621v1.842h2.035V9.512zm2.423 0H6.076v1.842H8.11zm2.454 0H8.532v1.842h2.034zM8.111 7.22H6.076v1.873H8.11z'/>`),
+    Step:       S(`0 0 24 24`,`<path fill='currentColor' d='M19 15q-1.275 0-2.137-.862T16 12t.863-2.137T19 9t2.138.863T22 12t-.862 2.138T19 15M9 17l-1.4-1.425L10.175 13H2v-2h8.175L7.6 8.4L9 7l5 5z'/>`),
     Animal:     S(`0 0 20 20`,`<path fill='currentColor' d='M5.5 4.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M3 4.5c-1.174 0-2 1.082-2 2.25S1.826 9 3 9s2-1.082 2-2.25S4.174 4.5 3 4.5m12 2.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25S18.174 9 17 9s-2-1.082-2-2.25m-4.5-2.5c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M4 14a6 6 0 0 1 12 0c0 .986-.504 1.753-1.21 2.255c-.697.495-1.601.745-2.485.745h-4.61c-.884 0-1.788-.25-2.484-.745C4.504 15.753 4 14.986 4 14'/>`),
     Mix:        S(`0 0 512 512`,`<path fill='currentColor' fill-rule='evenodd' d='m269.264 271.083l70.256 70.25l56.966-.001l-27.57-27.58l30.17-30.17l79.084 79.084l-79.085 79.085l-30.17-30.17L396.487 384H321.83l-82.745-82.74zM399.085 70.248l79.085 79.085l-79.085 79.085l-30.17-30.17l27.572-27.582H339.52L126.17 384H42.667v-42.667h65.813L321.83 128l74.657-.001l-27.572-27.581zM126.17 128l82.745 82.739l-30.179 30.177l-70.256-70.25H42.667V128z'/>`),
 
@@ -234,7 +236,7 @@ export const IconGroups = {
     Listing:['List','JobListing'],
     Check:['Require'],
     Screening:['PhoneScreen'],
-    Artifact:['Media'],
+    Artifact:['Media','Image','Photo','Picture'],
     Booking:['Appointment','Reservation','Schedule'],
     Product:['Sku','Item','Restock','Stock'],
     Order:['Invoice'],
@@ -287,9 +289,11 @@ export const IconGroups = {
     Range:['Span','Exchange'],
     Translate:['Translation','Localization','Language'],
     Portfolio:['Holding'],
-    Tool:['Maintenance','Support'],
+    Tool:['Maintenance','Support','Equipment','Build'],
     Watch:['Sight','Sighting','View','Watchlist'],
     Animal:['Wildlife','Pet','Zoo'],
+    Step:['Progress','Stage','Phase','Milestone'],
+    Mix:['Blend','Combine','Merge','Mixture'],
 }
 export const Icons:{[name:string]:string} = withAliases(IconMap, IconGroups)
 
