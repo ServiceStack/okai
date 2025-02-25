@@ -279,3 +279,16 @@ export function isBinary(contentType:string) {
         || contentType.endsWith('octet-stream')
         || contentType.endsWith('compressed'))
 }
+
+export function withAliases(icons:{[name:string]:string}, aliases:{[name:string]:string[]}):{[name:string]:string} {
+    const result:{[name:string]:string} = {}
+    Object.keys(icons).forEach(name => {
+        result[name.toLowerCase()] = icons[name].replaceAll('"',`'`)
+    })
+    Object.keys(aliases).forEach(name => {
+        for (const alias of aliases[name]) {
+            result[alias.toLowerCase()] = icons[name].replaceAll('"',`'`)
+        }
+    })
+    return result
+}

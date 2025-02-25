@@ -1,4 +1,4 @@
-import { splitCase } from './utils.js'
+import { splitCase, withAliases } from './utils.js'
 
 export function getIcon(type:string):string {
     const words = splitCase(type).split(' ')
@@ -43,19 +43,6 @@ export function generateCombinations(words:string[]) {
         }
     })
     return ret
-}
-
-function withAliases(icons:{[name:string]:string}, aliases:{[name:string]:string[]}):{[name:string]:string} {
-    const result:{[name:string]:string} = {}
-    Object.keys(icons).forEach(name => {
-        result[name.toLowerCase()] = icons[name].replaceAll('"',`'`)
-    })
-    Object.keys(aliases).forEach(name => {
-        for (const alias of aliases[name]) {
-            result[alias.toLowerCase()] = icons[name].replaceAll('"',`'`)
-        }
-    })
-    return result
 }
 
 const P = `<svg xmlns='http://www.w3.org/2000/svg' width='1em' height='1em' `
@@ -215,6 +202,8 @@ export const IconMap = {
     Step:       S(`0 0 24 24`,`<path fill='currentColor' d='M19 15q-1.275 0-2.137-.862T16 12t.863-2.137T19 9t2.138.863T22 12t-.862 2.138T19 15M9 17l-1.4-1.425L10.175 13H2v-2h8.175L7.6 8.4L9 7l5 5z'/>`),
     Animal:     S(`0 0 20 20`,`<path fill='currentColor' d='M5.5 4.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M3 4.5c-1.174 0-2 1.082-2 2.25S1.826 9 3 9s2-1.082 2-2.25S4.174 4.5 3 4.5m12 2.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25S18.174 9 17 9s-2-1.082-2-2.25m-4.5-2.5c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M4 14a6 6 0 0 1 12 0c0 .986-.504 1.753-1.21 2.255c-.697.495-1.601.745-2.485.745h-4.61c-.884 0-1.788-.25-2.484-.745C4.504 15.753 4 14.986 4 14'/>`),
     Mix:        S(`0 0 512 512`,`<path fill='currentColor' fill-rule='evenodd' d='m269.264 271.083l70.256 70.25l56.966-.001l-27.57-27.58l30.17-30.17l79.084 79.084l-79.085 79.085l-30.17-30.17L396.487 384H321.83l-82.745-82.74zM399.085 70.248l79.085 79.085l-79.085 79.085l-30.17-30.17l27.572-27.582H339.52L126.17 384H42.667v-42.667h65.813L321.83 128l74.657-.001l-27.572-27.581zM126.17 128l82.745 82.739l-30.179 30.177l-70.256-70.25H42.667V128z'/>`),
+    Solar:      S(`0 0 24 24`,`<path fill='currentColor' d='M3.33 16H11v-3H4zM13 16h7.67L20 13h-7zm8.11 2H13v4h9zM2 22h9v-4H2.89zm9-14h2v3h-2zm4.76-.79l1.42-1.42l2.12 2.12l-1.41 1.42zm-11.05.7l2.12-2.12l1.41 1.42l-2.12 2.12zM3 2h3v2H3zm15 0h3v2h-3zm-6 5c2.76 0 5-2.24 5-5H7c0 2.76 2.24 5 5 5'/>`),
+
 
     /** Actions */
     Completed: S(`0 0 2048 2048`,`<path fill='currentColor' d='M1024 0q141 0 272 36t244 104t207 160t161 207t103 245t37 272q0 141-36 272t-104 244t-160 207t-207 161t-245 103t-272 37q-141 0-272-36t-244-104t-207-160t-161-207t-103-245t-37-272q0-141 36-272t104-244t160-207t207-161T752 37t272-37m603 685l-136-136l-659 659l-275-275l-136 136l411 411z'/>`),
@@ -227,7 +216,7 @@ export const IconGroups = {
     Account:['Profile'],
     Team:['Collab','Collaboration','Role'],
     Region:['Country','State','Province','Capital'],
-    Lock:['Security','Padlock','Secure'],
+    Lock:['Security','Padlock','Secure','Permission'],
     Location:['Address','JobLocation'],
     Time:['TimeSlot','DateRange'],
     Feature:['Amenity'],
@@ -236,15 +225,16 @@ export const IconGroups = {
     Listing:['List','JobListing'],
     Check:['Require'],
     Screening:['PhoneScreen'],
+    Interview:['Communication'],
     Artifact:['Media','Image','Photo','Picture'],
-    Booking:['Appointment','Reservation','Schedule'],
+    Booking:['Appointment','Reservation','Schedule','Availability'],
     Product:['Sku','Item','Restock','Stock'],
     Order:['Invoice'],
     LineItem:['InvoiceItem'],
     Opportunity:['Lead','Deal'],
     Connect:['Interaction','Api'],
     Conversion:['Convert'],
-    Expense:['Cost','Price','Amount','Salary'],
+    Expense:['Cost','Price','Amount','Salary','Bill'],
     Approve:['Approval'],
     Refund:['Return','Reimburse'],
     Library:['Module'],
@@ -272,7 +262,7 @@ export const IconGroups = {
     Review:['Audit','Status'],
     Comment:['Feedback'],
     Vote:['Rating','Rank','Score','Priority'],
-    Favorite:['Bookmark','Star'],
+    Favorite:['Bookmark','Star','Gig'],
     Logs:['Detail','Details','History','Log','Record','Journal','Entry','Transaction','Trace'],
     PlainText:['Field'],
     Ship:['Shipment'],
@@ -281,6 +271,7 @@ export const IconGroups = {
     Attachment:['File'],
     News:['Announcement'],
     Data:['Database'],
+    Sales:['Merchant'],
     Channel:['Stream','Broadcast','Feed','Session'],
     Search:['Filter','Lookup','Query','Match'],
     Save:['Saved','Archive','Backup','Download','Export'],
@@ -289,11 +280,12 @@ export const IconGroups = {
     Range:['Span','Exchange'],
     Translate:['Translation','Localization','Language'],
     Portfolio:['Holding'],
-    Tool:['Maintenance','Support','Equipment','Build'],
+    Tool:['Maintenance','Support','Equipment','Build','Inverter'],
     Watch:['Sight','Sighting','View','Watchlist'],
     Animal:['Wildlife','Pet','Zoo'],
     Step:['Progress','Stage','Phase','Milestone'],
     Mix:['Blend','Combine','Merge','Mixture'],
+    Hotel:['Venue'],
 }
 export const Icons:{[name:string]:string} = withAliases(IconMap, IconGroups)
 
