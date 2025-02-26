@@ -148,6 +148,7 @@ export const IconMap = {
     Subscription: S(`0 0 24 24`,`<path fill='currentColor' d='M12.525 4H5.25l-.184.005A3.25 3.25 0 0 0 2 7.25v9.5l.005.184A3.25 3.25 0 0 0 5.25 20h13.5l.184-.005A3.25 3.25 0 0 0 22 16.75V9.332a1.743 1.743 0 0 1-.75.168h-.75v7.25l-.006.143A1.75 1.75 0 0 1 18.75 18.5H5.25l-.144-.006A1.75 1.75 0 0 1 3.5 16.75V9.374l8.15 4.29l.097.042a.75.75 0 0 0 .602-.042L20.26 9.5h-3.22L12 12.152L3.5 7.68v-.43l.006-.144A1.75 1.75 0 0 1 5.25 5.5h6.768a1.745 1.745 0 0 1 .508-1.5Zm8.725-2a.75.75 0 1 1 0 1.5h-7.5a.747.747 0 0 1-.75-.75a.75.75 0 0 1 .75-.75h7.5Zm0 2.5a.75.75 0 1 1 0 1.5h-7.5a.75.75 0 0 1 0-1.5h7.5ZM13 7.75a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75Z'/>`),
     Newsletter:   S(`0 0 20 20`,`<path fill='currentColor' d='M16 2h4v15a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V0h16v2zm0 2v13a1 1 0 0 0 1 1a1 1 0 0 0 1-1V4h-2zM2 2v15a1 1 0 0 0 1 1h11.17a2.98 2.98 0 0 1-.17-1V2H2zm2 8h8v2H4v-2zm0 4h8v2H4v-2zM4 4h8v4H4V4z'/>`),
     Expense:      S(`0 0 24 24`,`<path fill='currentColor' d='M7 15h2c0 1.08 1.37 2 3 2s3-.92 3-2c0-1.1-1.04-1.5-3.24-2.03C9.64 12.44 7 11.78 7 9c0-1.79 1.47-3.31 3.5-3.82V3h3v2.18C15.53 5.69 17 7.21 17 9h-2c0-1.08-1.37-2-3-2s-3 .92-3 2c0 1.1 1.04 1.5 3.24 2.03C14.36 11.56 17 12.22 17 15c0 1.79-1.47 3.31-3.5 3.82V21h-3v-2.18C8.47 18.31 7 16.79 7 15'/>`),
+    Currency:     S(`0 0 24 24`,`<path fill='currentColor' d='M13.92 11H18v2h-5v2h5v2h-5v4h-2v-4H6v-2h5v-2H6v-2h4.08L5 3h2.37L12 10.29L16.63 3H19z'/>`),
     Approve:      S(`0 0 24 24`,`<path fill='currentColor' d='m23 12l-2.44-2.78l.34-3.68l-3.61-.82l-1.89-3.18L12 3L8.6 1.54L6.71 4.72l-3.61.81l.34 3.68L1 12l2.44 2.78l-.34 3.69l3.61.82l1.89 3.18L12 21l3.4 1.46l1.89-3.18l3.61-.82l-.34-3.68zm-13 5l-4-4l1.41-1.41L10 14.17l6.59-6.59L18 9z'/>`),
     Actual:       S(`0 0 24 24`,`<path fill='none' stroke='currentColor' stroke-width='2' d='M9 15v3c0 .943 0 1.414-.293 1.707S7.943 20 7 20H6c-.943 0-1.414 0-1.707-.293S4 18.943 4 18v-1c0-.943 0-1.414.293-1.707S5.057 15 6 15zm6-11h5v5m0-5L9 15'/>`),
     Refund:       S(`0 0 20 20`,`<path fill='currentColor' fill-rule='evenodd' d='M5 2a2 2 0 0 0-2 2v14l3.5-2l3.5 2l3.5-2l3.5 2V4a2 2 0 0 0-2-2zm4.707 3.707a1 1 0 0 0-1.414-1.414l-3 3a1 1 0 0 0 0 1.414l3 3a1 1 0 0 0 1.414-1.414L8.414 9H10a3 3 0 0 1 3 3v1a1 1 0 1 0 2 0v-1a5 5 0 0 0-5-5H8.414z' clip-rule='evenodd'/>`),
@@ -203,6 +204,8 @@ export const IconMap = {
     Animal:     S(`0 0 20 20`,`<path fill='currentColor' d='M5.5 4.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M3 4.5c-1.174 0-2 1.082-2 2.25S1.826 9 3 9s2-1.082 2-2.25S4.174 4.5 3 4.5m12 2.25c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25S18.174 9 17 9s-2-1.082-2-2.25m-4.5-2.5c0-1.168.826-2.25 2-2.25s2 1.082 2 2.25s-.826 2.25-2 2.25s-2-1.082-2-2.25M4 14a6 6 0 0 1 12 0c0 .986-.504 1.753-1.21 2.255c-.697.495-1.601.745-2.485.745h-4.61c-.884 0-1.788-.25-2.484-.745C4.504 15.753 4 14.986 4 14'/>`),
     Mix:        S(`0 0 512 512`,`<path fill='currentColor' fill-rule='evenodd' d='m269.264 271.083l70.256 70.25l56.966-.001l-27.57-27.58l30.17-30.17l79.084 79.084l-79.085 79.085l-30.17-30.17L396.487 384H321.83l-82.745-82.74zM399.085 70.248l79.085 79.085l-79.085 79.085l-30.17-30.17l27.572-27.582H339.52L126.17 384H42.667v-42.667h65.813L321.83 128l74.657-.001l-27.572-27.581zM126.17 128l82.745 82.739l-30.179 30.177l-70.256-70.25H42.667V128z'/>`),
     Solar:      S(`0 0 24 24`,`<path fill='currentColor' d='M3.33 16H11v-3H4zM13 16h7.67L20 13h-7zm8.11 2H13v4h9zM2 22h9v-4H2.89zm9-14h2v3h-2zm4.76-.79l1.42-1.42l2.12 2.12l-1.41 1.42zm-11.05.7l2.12-2.12l1.41 1.42l-2.12 2.12zM3 2h3v2H3zm15 0h3v2h-3zm-6 5c2.76 0 5-2.24 5-5H7c0 2.76 2.24 5 5 5'/>`),
+    Phone:      S(`0 0 24 24`,`<path fill='currentColor' d='M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24c1.12.37 2.33.57 3.57.57c.55 0 1 .45 1 1V20c0 .55-.45 1-1 1c-9.39 0-17-7.61-17-17c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1c0 1.25.2 2.45.57 3.57c.11.35.03.74-.25 1.02z'/>`),
+    B:          S(`0 0 24 24`,`<path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m5 3l4 1.5v12l6-2.5l-2-1l-1-4l7 2.5V16L9 21l-4-2z'/>`),
 
 
     /** Actions */
@@ -222,7 +225,7 @@ export const IconGroups = {
     Feature:['Amenity'],
     Application:['JobApplication'],
     Project:['Campaign'],
-    Listing:['List','JobListing'],
+    Listing:['List','JobListing','Attribute'],
     Check:['Require'],
     Screening:['PhoneScreen'],
     Interview:['Communication'],
@@ -240,7 +243,7 @@ export const IconGroups = {
     Library:['Module'],
     Page:['Article','Document'],
     Policy:['Privacy','CompanyPolicy'],
-    Gift:['Benefit','Service','Share','Sharing','Reward'],
+    Gift:['Benefit','Service','Share','Sharing','Reward','Discount'],
     Deduct:['Deduction'],
     Tax:['Taxes'],
     Tag:['Label'],
@@ -276,7 +279,7 @@ export const IconGroups = {
     Search:['Filter','Lookup','Query','Match'],
     Save:['Saved','Archive','Backup','Download','Export'],
     Chip:['Hardware'],
-    Output:['Response'],
+    Output:['Response','Value'],
     Range:['Span','Exchange'],
     Translate:['Translation','Localization','Language'],
     Portfolio:['Holding'],
@@ -284,8 +287,9 @@ export const IconGroups = {
     Watch:['Sight','Sighting','View','Watchlist'],
     Animal:['Wildlife','Pet','Zoo'],
     Step:['Progress','Stage','Phase','Milestone'],
-    Mix:['Blend','Combine','Merge','Mixture'],
+    Mix:['Blend','Combine','Merge','Mixture','Variant'],
     Hotel:['Venue'],
+    B:['Brand'],
 }
 export const Icons:{[name:string]:string} = withAliases(IconMap, IconGroups)
 
