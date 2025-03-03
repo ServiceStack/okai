@@ -58,7 +58,7 @@ export class CSharpGenerator {
         return to
     }
 
-    toAttribtue(attr:MetadataAttribute) {
+    toAttribute(attr:MetadataAttribute) {
         let body = ''
         if (attr.constructorArgs?.length) {
             for (const arg of attr.constructorArgs) {
@@ -105,7 +105,7 @@ export class CSharpGenerator {
         }
         for (const attr of this.sortAttributes(cls.attributes ?? [])) {
             if (opt?.hideAttrs?.includes(attr.name.toLowerCase())) continue
-            const def = this.toAttribtue(attr)
+            const def = this.toAttribute(attr)
             sb.push(`${def}`)
         }
         sb.push(clsDef)
@@ -119,7 +119,8 @@ export class CSharpGenerator {
                 sb.push(`    /// </summary>`)
             }
             for (const attr of this.sortAttributes(prop.attributes ?? [])) {
-                const def = this.toAttribtue(attr)
+                if (opt?.hideAttrs?.includes(attr.name.toLowerCase())) continue
+                const def = this.toAttribute(attr)
                 sb.push(`    ${def}`)
             }
             const propType = this.toType(prop.type, prop.genericArgs, prop.namespace)

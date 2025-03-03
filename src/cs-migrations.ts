@@ -18,7 +18,7 @@ export class CSharpMigrationGenerator extends CSharpGenerator {
 
         // props with [Reference] attribute don't need to be included in the migration (ignore to avoid missing references e.g. User)
         const ignoreProp = (prop:MetadataPropertyType) => prop.attributes?.some(x => x.name === 'Reference')
-        const hideAttrs = ['description','icon']
+        const hideAttrs = ['description','icon','ref']
         const opt = { hideAttrs, ignoreProp }
         const genTypes = ast.types.filter(t => 
             !t.isEnum && 

@@ -60,7 +60,7 @@ export class CSharpApiGenerator extends CSharpGenerator {
         }
 
         for (const attr of this.sortAttributes(attrs)) {
-            sb.push(this.toAttribtue(attr))
+            sb.push(this.toAttribute(attr))
         }
         
         sb.push(clsDef)
@@ -80,7 +80,7 @@ export class CSharpApiGenerator extends CSharpGenerator {
                 }
             }
             for (const attr of this.sortAttributes(attrs)) {    
-                const def = this.toAttribtue(attr)
+                const def = this.toAttribute(attr)
                 sb.push(`    ${def}`)
             }
             const propType:MetadataTypeName = { name:prop.type, namespace:prop.namespace, genericArgs:prop.genericArgs }
