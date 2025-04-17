@@ -292,3 +292,156 @@ export function withAliases(icons:{[name:string]:string}, aliases:{[name:string]
     })
     return result
 }
+
+export function isCloudflareWorker(): boolean {
+    // Use a safe approach that works at both build and runtime
+    
+    // Check for Worker-specific globals without directly referencing types
+    // that would cause build errors
+    const hasWorkerAPIs = 
+      typeof self !== 'undefined' && 
+      typeof caches !== 'undefined' && 
+      typeof addEventListener !== 'undefined' &&
+      'fetch' in self;
+      
+    // Check for Node-specific features safely
+    const hasNodeFeatures = (): boolean => {
+      try {
+        // Check for global object without direct reference
+        return typeof globalThis !== 'undefined' && 
+          // Check for process without direct reference that would error in CF
+          !!(globalThis as any).process;
+      } catch {
+        return false;
+      }
+    };
+    
+    // Check for service worker context safely
+    const isServiceWorkerContext = (): boolean => {
+      try {
+        return typeof self !== 'undefined' && 
+          self.constructor.name === 'ServiceWorkerGlobalScope';
+      } catch {
+        return false;
+      }
+    };
+    
+    // Return true if we have Worker indicators and don't have Node indicators
+    return hasWorkerAPIs && isServiceWorkerContext() && !hasNodeFeatures();
+}
+
+export function parseJsObject(js: string) {
+    if (isCloudflareWorker()) {
+        return safeJsObject(js)
+    }
+    // Parse object literals
+    try {
+        return (new Function(`return ${js}`))()
+    } catch (e) {
+        // Cloudflare workers don't support eval or new Function
+        return safeJsObject(js)
+    }
+}
+
+export function safeJsObject(jsStr: string) {
+    let result = ''
+    let i = 0
+
+    // State tracking
+    let inString = false
+    let quoteType = null // ' or "
+    let depth = 0
+
+    const peek = (n = 1) => i + n < jsStr.length ? jsStr[i + n] : ''
+
+    while (i < jsStr.length) {
+        const char = jsStr[i]
+        const nextChar = peek()
+        const prevChar = i > 0 ? jsStr[i - 1] : ''
+
+        // Handle string boundaries
+        if ((char === '"' || char === "'") && prevChar !== '\\') {
+            if (!inString) {
+                // Starting a string
+                inString = true
+                quoteType = char
+                result += '"' // Always use double quotes for JSON
+            } else if (char === quoteType) {
+                // Ending a string
+                inString = false
+                quoteType = null
+                result += '"'
+            } else {
+                // A quote character inside a string of a different type
+                result += char;
+            }
+            i++
+            continue
+        }
+
+        // Handle escaped characters in strings
+        if (inString && char === '\\') {
+            if (nextChar === quoteType) {
+                // Convert escaped quote to JSON format
+                result += '\\"'
+                i += 2
+                continue
+            } else {
+                // Pass through other escape sequences
+                result += char
+                i++
+                continue
+            }
+        }
+
+        // When not in a string, handle object/array syntax
+        if (!inString) {
+            // Track nesting depth
+            if (char === '{' || char === '[') {
+                depth++
+                result += char
+                i++
+                continue
+            } else if (char === '}' || char === ']') {
+                depth--
+                result += char
+                i++
+                continue
+            }
+
+            // Handle property keys - match unquoted keys followed by colon
+            if (depth > 0 && /[a-zA-Z0-9_$]/.test(char)) {
+                let keyBuffer = ''
+                let j = i
+
+                // Collect the potential key name
+                while (j < jsStr.length && /[a-zA-Z0-9_$]/.test(jsStr[j])) {
+                    keyBuffer += jsStr[j]
+                    j++
+                }
+
+                // Skip whitespace
+                let k = j
+                while (k < jsStr.length && /\s/.test(jsStr[k])) k++
+
+                // If followed by a colon, it's a property key
+                if (k < jsStr.length && jsStr[k] === ':') {
+                    result += `"${keyBuffer}"`; // Add quoted key to result
+                    i = k; // Move to the colon position
+                    continue
+                }
+            }
+        }
+
+        // Default: add character to result
+        result += char
+        i++
+    }
+
+    // Validate and return
+    try {
+        return JSON.parse(result)
+    } catch (e) {
+        throw new Error(`Failed to produce valid JSON: ${e.message}`)
+    }
+}

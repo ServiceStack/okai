@@ -174,7 +174,7 @@ export function addCustomInputs(cls:ParsedClass) {
         "price","cost","total","salary","balance","tax","fee"
     ]
     for (const prop of cls.properties ?? []) {
-        if (currencyTypeProps.some(x => prop.name.toLowerCase().includes(x))) {
+        if (currencyTypeProps.some(x => prop.name.toLowerCase().includes(x)) && (prop.type === 'number' || prop.type === 'decimal' || prop.type === 'double')) {
             if (!prop.annotations) prop.annotations = []
             prop.annotations.push({ 
                 name: "intlNumber",

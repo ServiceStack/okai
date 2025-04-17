@@ -1,4 +1,4 @@
-import { lastLeftPart, lastRightPart, leftPart, rightPart, trimEnd, trimStart } from "./utils.js"
+import { lastLeftPart, lastRightPart, leftPart, parseJsObject, rightPart, trimEnd, trimStart } from "./utils.js"
 
 export interface ParsedConfig {
     prompt?: string
@@ -444,7 +444,10 @@ export class TypeScriptParser {
         this.classes = []
         this.interfaces = []
         this.enums = []
-        const src = removeMultilineComments(sourceCode)
+        let src = sourceCode
+        src = convertJsDocComments(src)
+        src = removeMultilineComments(src)
+        
         // const src = sourceCode
 
         this.parseConfigType(src)
@@ -488,8 +491,7 @@ export function parseAnnotation(annotation: string) {
         // Parse each argument
         const parsedArgs = rawArgs.map(arg => {
             if (arg.startsWith('{')) {
-                // Parse object literals
-                return (new Function(`return ${arg}`))()
+                return parseJsObject(arg)
             } else if (arg.startsWith('"') || arg.startsWith("'") || arg.startsWith("`")) {
                 // Parse strings
                 return arg.slice(1, -1)
@@ -510,6 +512,7 @@ export function parseAnnotation(annotation: string) {
         if (args) to.args = args
         return to
     } catch (e) {
+        console.log('Failed to parse annotation:', e)
         return null
     }
 }
@@ -686,4 +689,51 @@ export function removeMultilineComments(src:string) {
     }
     
     return result
+}
+
+
+export function convertJsDocComments(src: string): string {
+    if (!src || !src.includes('/*')) {
+        return src;
+    }
+    let result = src;
+    
+    // Convert multi-line JSDoc block comments (/**...*/)
+    result = result.replace(/\/\*\*[\s\n]+(\s*\*[\s\n]+.*?[\s\n]+)*?\s*\*\//gs, (match, _, offset) => {
+        // Find the indentation level of the line that contains or follows the comment
+        const lines = src.substring(0, offset + match.length).split('\n');
+        const commentEndLineIndex = lines.length - 1;
+        const nextLineIndex = commentEndLineIndex + 1;
+        
+        // Try to find the indentation from the line following the comment
+        let indent = '';
+        if (nextLineIndex < src.split('\n').length) {
+            const nextLine = src.split('\n')[nextLineIndex];
+            const nextLineIndent = nextLine.match(/^(\s*)/)?.[1] || '';
+            indent = nextLineIndent;
+        } else {
+            // Fallback to the first non-empty line in the comment
+            const firstLine = match.split('\n').find(line => line.trim() !== '');
+            indent = firstLine?.match(/^(\s*)/)?.[1] || '';
+        }
+        
+        // Process each line of the comment, ensuring consistent indentation for all lines
+        const commentLines = match.split('\n')
+            .slice(1, -1) // Remove first (/**) and last (*/) lines
+            .map(line => {
+                // Remove * prefix from each line and convert to // comment
+                const content = line.replace(/^\s*\*\s?/, '').trimEnd();
+                return content.length > 0 ? `${indent}// ${content}` : `${indent}//`;
+            });
+        
+        return commentLines.join('\n');
+    });
+
+    // Convert single-line JSDoc comments (/** ... */)
+    result = result.replace(/\/\*\*\s+(.*?)\s+\*\//g, '// $1');
+    
+    // Convert inline JSDoc comments after statements
+    result = result.replace(/(.+?)\s+\/\*\*\s+(.*?)\s+\*\//g, '$1 // $2');
+    
+    return result;
 }
