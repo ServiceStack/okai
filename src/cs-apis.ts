@@ -71,7 +71,7 @@ export class CSharpApiGenerator extends CSharpGenerator {
             this.addNamespace(prop.namespace)
             if (prop.description && !hasPropAttr('ApiMember')) {
                 if (!prop.description.includes('\n')) {
-                    attrs.push({ name:'ApiMember', args:[{ name:'Description', type:'string', value:prop.description.replace(/"/g, '\\"') }] })
+                    attrs.push({ name:'ApiMember', args:[{ name:'Description', type:'string', value:prop.description }] })
                 } else {
                     sb.push(`    [ApiMember(Description=\n` +
                             `    """\n` +

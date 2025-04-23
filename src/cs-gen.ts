@@ -134,7 +134,7 @@ export class CSharpGenerator {
     }
 
     toQuotedString(s?:string, defaultValue:string = '""') {
-        return s ? `"${s.replaceAll('\n','\\n')}"` : defaultValue
+        return s ? `"${s.replaceAll('\\','\\\\').replaceAll('"','\\"').replaceAll('\n','\\n').replaceAll('\t','\\t')}"` : defaultValue
     }
 
     toEnum(enumType:MetadataType, opt?:{hideAttrs:string[]}) {
