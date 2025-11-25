@@ -1,7 +1,7 @@
 {
   "name": "okai",
   "type": "module",
-  "version": "patch",
+  "version": "0.0.46",
   "bin": "./bin/okai.js",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
