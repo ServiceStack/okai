@@ -1,9 +1,10 @@
 import fs from 'fs'
-import { describe, it, expect } from 'bun:test'
-import { jobBoard } from './a-examples'
-import { createAstFromAITypeScript } from '../src/ts-ast'
-import { toMetadataTypes } from '../src/cs-ast'
-import { UiMjsGroupGenerator, UiMjsIndexGenerator } from '../src/ui-mjs'
+import { describe, it } from 'node:test'
+import assert from 'node:assert'
+import { jobBoard } from './a-examples.ts'
+import { createAstFromAITypeScript } from '../dist/ts-ast.js'
+import { toMetadataTypes } from '../dist/cs-ast.js'
+import { UiMjsGroupGenerator, UiMjsIndexGenerator } from '../dist/ui-mjs.js'
 
 /*prompt:  Create a Job Board
 api:       ~/BlazorDiffusion.ServiceModel/JobListings.cs
@@ -20,7 +21,7 @@ describe('UI mjs tests', () => {
         const ui = uiGen.generate(csAst)
         // console.log(ui)
 
-        expect(ui).toEqual(`export default {
+        assert.strictEqual(ui, `export default {
     group: "Jobs",
     items: {
         Companies: {
@@ -77,7 +78,7 @@ describe('UI mjs tests', () => {
         const indexGen = new UiMjsIndexGenerator()
         const files = ["index.mjs", "Bookings.mjs", "Jobs.mjs"]
         const index = indexGen.generate(files)
-        expect(index).toEqual(`import Bookings from './Bookings.mjs'
+        assert.strictEqual(index, `import Bookings from './Bookings.mjs'
 import Jobs from './Jobs.mjs'
 export {
     Bookings,

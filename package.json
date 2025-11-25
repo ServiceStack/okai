@@ -1,29 +1,28 @@
 {
   "name": "okai",
   "type": "module",
-  "version": "0.0.46",
-  "bin": "./dist/okai.js",
+  "version": "patch",
+  "bin": "./bin/okai.js",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "description": "",
+  "description": "AI-powered code generation tool for ServiceStack Apps. Generate TypeScript data models, C# APIs, migrations, and UI components from natural language prompts using LLMs.",
   "exports": {
     "types": "./dist/index.d.ts",
     "import": "./dist/index.js"
   },
   "scripts": {
-    "build": "bun run clean && tsc && shx cp ./src/api.d.ts ./dist && chmod +x ./dist/okai.js",
-    "build-bun": "bun run clean && bun build.ts",
-    "clean": "shx rm -rf ./dist",
-    "test": "bun test --",
-    "prepublishOnly": "bun run build",
-    "release": "bun run clean && bun run build && bump patch --commit --push --tag && npm publish --access public"
+    "build": "npm run clean && tsc && cp ./src/api.d.ts ./dist",
+    "clean": "rm -rf ./dist",
+    "test": "node --test --experimental-strip-types test/*.test.ts test/*.test.js",
+    "release": "npm run clean && npm run build && bump patch --commit --push --tag && npm publish --access public"
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
   "keywords": [
     "servicestack",
@@ -43,9 +42,8 @@
   },
   "devDependencies": {
     "@types/blessed": "^0.1.25",
-    "@types/bun": "^1.1.14",
     "@types/node": "^22.10.1",
-    "bun-plugin-dts": "^0.3.0",
+    "bump": "^0.2.5",
     "typescript": "^5.7.2"
   }
 }

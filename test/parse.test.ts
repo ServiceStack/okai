@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'bun:test'
-import { parseUserType, parseUserDtoType } from '../src/info'
+import { describe, it } from 'node:test'
+import assert from 'node:assert'
+import { parseUserType, parseUserDtoType } from '../dist/info.js'
 
 describe('parse tests', () => {
 
@@ -15,8 +16,8 @@ public class ApplicationUser : IdentityUser
 }
 `
         const userInfo = parseUserType(cs)
-        expect(userInfo?.userType).toBe('ApplicationUser')
-        expect(userInfo?.userIdType).toBe(null)
+        assert.strictEqual(userInfo?.userType, 'ApplicationUser')
+        assert.strictEqual(userInfo?.userIdType, null)
     })
 
     it ('does parse IdentityUser<int>', () => {
@@ -31,8 +32,8 @@ public class ApplicationUser : IdentityUser<int>
 }
 `
         const userInfo = parseUserType(cs)
-        expect(userInfo?.userType).toBe('ApplicationUser')
-        expect(userInfo?.userIdType).toBe('int')
+        assert.strictEqual(userInfo?.userType, 'ApplicationUser')
+        assert.strictEqual(userInfo?.userIdType, 'int')
     })
 
     it ('does parse User DTO', () => {
@@ -53,9 +54,9 @@ public class User
         const dto = parseUserDtoType(cs)
 
         // console.log(dto)
-        expect(dto?.userType).toBe('User')
-        expect(dto?.userIdType).toBe('string')
-        expect(dto?.userLabel).toBe('DisplayName')
+        assert.strictEqual(dto?.userType, 'User')
+        assert.strictEqual(dto?.userIdType, 'string')
+        assert.strictEqual(dto?.userLabel, 'DisplayName')
     })
 
     it ('does parse User DTO without DisplayName', () => {
@@ -72,8 +73,8 @@ public class User
         const dto = parseUserDtoType(cs)
 
         // console.log(dto)
-        expect(dto?.userType).toBe('User')
-        expect(dto?.userIdType).toBe('string')
-        expect(dto?.userLabel).toBe('FirstName')
+        assert.strictEqual(dto?.userType, 'User')
+        assert.strictEqual(dto?.userIdType, 'string')
+        assert.strictEqual(dto?.userLabel, 'FirstName')
     })
 })

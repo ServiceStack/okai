@@ -3,11 +3,17 @@
       "outDir": "./dist/",
       "target": "ESNext",
       "module": "ESNext",
-      "moduleResolution": "node",
+      "moduleResolution": "bundler",
       "strict": false,
       "esModuleInterop": true,
       "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true
+      "forceConsistentCasingInFileNames": true,
+      "declaration": true,
+      "declarationMap": true,
+      "sourceMap": true,
+      "resolveJsonModule": true,
+      "allowSyntheticDefaultImports": true
     },
     "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist", "test", "src/okai.ts"]
   }

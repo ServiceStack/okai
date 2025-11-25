@@ -1,7 +1,14 @@
-import { describe, it, expect } from 'bun:test'
-import appJson from './App.json'
-import { convertDefinitionsToAst } from '../src/client'
-import { toTsd } from '../src/tsd-gen'
+import { describe, it } from 'node:test'
+import assert from 'node:assert'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import { convertDefinitionsToAst } from '../dist/client.js'
+import { toTsd } from '../dist/tsd-gen.js'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const appJson = JSON.parse(readFileSync(join(__dirname, 'App.json'), 'utf-8'))
 
 // return unique data types:
 //cat test/db.json | jq '[.[].columns[].dataType] | unique'
@@ -13,7 +20,7 @@ describe('code gen tests', () => {
         const ast = convertDefinitionsToAst(appJson)
         const ts = toTsd(ast)
         // console.log(ts)
-        expect(ts.trim()).toEqual(`
+        assert.strictEqual(ts.trim(), `
 export type Config = {
 }
 
