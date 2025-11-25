@@ -30,7 +30,9 @@ export function projectInfo(cwd: string) : ProjectInfo {
     if (!sln) {
         return null
     }
-    const projectName = sln.substring(0, sln.length - 4)
+    const projectName = sln.endsWith('.slnx')
+        ? sln.substring(0, sln.length - 5)
+        : sln.substring(0, sln.length - 4)
 
     function getDir(slnDir:string, match:(file:string) => boolean) {
         if (fs.readdirSync(slnDir).find(match))
