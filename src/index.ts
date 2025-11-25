@@ -270,7 +270,7 @@ Options:
   const info = command.info = projectInfo(process.cwd())
   if (!info) {
     if (!info) {
-      console.log(`No .sln file found`)
+      console.log(`No .sln or .slnx file found`)
       console.log(`okai needs to be run within the context of a ServiceStack App containing a ServiceModel project`)
       console.log(`To use with an external or custom project, create an okai.json config file with:`)
       console.log(`$ ${script} init`)

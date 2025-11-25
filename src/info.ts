@@ -18,11 +18,11 @@ export function projectInfo(cwd: string) : ProjectInfo {
 
     const parentDir = path.dirname(cwd)
     let slnDir = ''
-    let sln = fs.readdirSync(cwd).find(f => f.endsWith(".sln"))
+    let sln = fs.readdirSync(cwd).find(f => f.endsWith(".sln") || f.endsWith(".slnx"))
     if (sln) {
         slnDir = cwd
     } else {
-        sln = fs.readdirSync(parentDir).find(f => f.endsWith(".sln"))
+        sln = fs.readdirSync(parentDir).find(f => f.endsWith(".sln") || f.endsWith(".slnx"))
         if (sln) {
             slnDir = parentDir
         }
