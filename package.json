@@ -15,7 +15,10 @@
     "build": "npm run clean && tsc && cp ./src/api.d.ts ./dist",
     "clean": "rm -rf ./dist",
     "test": "node --test --experimental-strip-types test/*.test.ts test/*.test.js",
-    "release": "npm run clean && npm run build && bump patch --commit --push --tag && npm publish --access public"
+    "bump": "npm version patch && git push origin main --follow-tags",
+    "bump:minor": "npm version minor && git push origin main --follow-tags",
+    "bump:major": "npm version major && git push origin main --follow-tags",
+    "release": "gh release create v$(node -p \"require('./package.json').version\") --title v$(node -p \"require('./package.json').version\") --generate-notes"
   },
   "files": [
     "dist",
