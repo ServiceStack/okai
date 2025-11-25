@@ -16,17 +16,28 @@ export function projectInfo(cwd: string) : ProjectInfo {
         : null
     if (config) return config
 
-    const parentDir = path.dirname(cwd)
+    // Search for .sln or .slnx file by walking up the directory tree
     let slnDir = ''
-    let sln = fs.readdirSync(cwd).find(f => f.endsWith(".sln") || f.endsWith(".slnx"))
-    if (sln) {
-        slnDir = cwd
-    } else {
-        sln = fs.readdirSync(parentDir).find(f => f.endsWith(".sln") || f.endsWith(".slnx"))
-        if (sln) {
-            slnDir = parentDir
+    let sln = ''
+    let currentDir = cwd
+    const root = path.parse(currentDir).root
+
+    while (currentDir !== root) {
+        try {
+            const found = fs.readdirSync(currentDir).find(f => f.endsWith(".sln") || f.endsWith(".slnx"))
+            if (found) {
+                sln = found
+                slnDir = currentDir
+                break
+            }
+        } catch (e) {
+            // ignore permission errors
         }
+        const parentDir = path.dirname(currentDir)
+        if (parentDir === currentDir) break // reached root
+        currentDir = parentDir
     }
+
     if (!sln) {
         return null
     }
