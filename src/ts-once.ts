@@ -10,6 +10,7 @@ export function createTdAstFromAIAst(tsAst:ParseResult, groupName?:string) {
     replaceReferences(tsAst)
     replaceIds(tsAst)
     replaceConflictTypes(tsAst)
+    rewriteArrayProps(tsAst)
 
     tsAst.classes.forEach(cls => {
         // replaceUserRefs(cls)
@@ -18,6 +19,7 @@ export function createTdAstFromAIAst(tsAst:ParseResult, groupName?:string) {
         removeDuplicateProps(cls)
         rewriteSelfReferencingIds(cls)
         convertToAuditBase(cls)
+        addUploadInputs(cls)
         addCustomInputs(cls)
 
         if (groupName) {
@@ -34,7 +36,7 @@ export function createTdAstFromAIAst(tsAst:ParseResult, groupName?:string) {
 
 // Replace User Tables and FKs with AuditBase tables and 
 export function transformUserRefs(tsAst:ParseResult, info:ProjectInfo) {
-    const addClasses = []
+    const addClasses = [] as ParsedClass[]
     for (const cls of tsAst.classes) {
         const removeProps:string[] = []
         for (const prop of cls.properties!) {
@@ -137,6 +139,31 @@ function replaceConflictTypes(gen:ParseResult) {
     }
 }
 
+function rewriteArrayProps(gen:ParseResult) {
+    gen.classes.forEach(type => {
+        if (!type.properties) return
+        const arrayProps = type.properties?.filter(x => x.type.endsWith('[]'))
+        for (const prop of arrayProps ?? []) {
+            const propType = prop.type
+            if (propType.endsWith('[]')) {
+                const elName = propType.substring(0, propType.length - 2)
+                const enumType = gen.enums?.find(x => x.name === elName)
+                if (enumType) {
+                    prop.annotations ??= []
+                    const enumValues = enumType.members?.map(x => `'${x.name}'`) ?? []
+                    prop.annotations.push({ name: 'input', args: { 
+                            type: 'combobox',
+                            evalAllowableValues: `[${enumValues.join(',')}]`,
+                            multiple: true,
+                        } 
+                    })
+                }
+            }
+        }
+    });
+}
+
+
 function rewriteDuplicateTypePropNames(type:ParsedClass) {
     const duplicateTypePropMap : Record<string,string> = {
         note: 'content',
@@ -166,6 +193,27 @@ function rewriteSelfReferencingIds(type:ParsedClass) {
     const selfRefId = type.properties?.find(x => x.name.toLowerCase() === `${type.name}id`.toLowerCase())
     if (selfRefId) {
         selfRefId.name = `parentId`
+    }
+}
+
+export function addUploadInputs(cls:ParsedClass) {
+    const fileTypeProps = ['File', 'File[]', 'Blob', 'Blob[]']
+    for (const prop of cls.properties ?? []) {
+        if (fileTypeProps.some(x => prop.type.includes(x))) {
+            prop.annotations ??= []
+            prop.annotations.push({ 
+                name: "input",
+                args: { 
+                    type: "file",
+                    multiple: prop.type.endsWith('[]'),
+                }
+            })
+            prop.annotations.push({ 
+                name: "uploadTo",
+                constructorArgs: ['secure'],
+            })
+            prop.type = 'string'
+        }
     }
 }
 

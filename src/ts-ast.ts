@@ -8,7 +8,10 @@ import { getGroupName } from "./utils.js"
 // Extract TypeScript source code from a AI Response
 export function extractTypeScriptSrc(msg:string) {
     msg = msg.trim()
-    const startPos = msg.indexOf("```typescript")
+    let startPos = msg.indexOf("```typescript")
+    if (startPos < 0) {
+        startPos = msg.indexOf("```ts")
+    }
     if (startPos >= 0) {
         const ts = msg.substring(msg.indexOf('\n', startPos) + 1)
         const src = ts.substring(0, ts.indexOf("```"))
